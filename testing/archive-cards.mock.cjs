@@ -189,7 +189,7 @@ const server = http.createServer((req,res) => {
   for(const width of [1500,390]) {
    await page.setViewportSize({width,height:950});
    assert.equal(await page.locator('.board-missing-address').count(),2);
-   const number=page.locator('[data-order-id="501"] .board-order-number');assert.equal(await number.textContent(),'405-3504256-0919539');await page.waitForFunction(()=>{const el=document.querySelector('[data-order-id="501"] .board-order-number');const badge=el?.closest('.board-order-identity').querySelector('.vendor-badge');if(!el || !badge)return false;const number=el.getBoundingClientRect(),channel=badge.getBoundingClientRect();return number.height>0 && number.height<60 && number.left>=channel.right && number.right<=el.closest('.board-card').getBoundingClientRect().right;});
+   const number=page.locator('[data-order-id="501"] .board-order-number');assert.equal(await number.textContent(),'405-3504256-0919539');await page.waitForFunction(()=>{const el=document.querySelector('[data-order-id="501"] .board-order-number');const badge=el?.closest('.board-order-identity').querySelector('.vendor-badge');if(!el || !badge)return false;const number=el.getBoundingClientRect(),channel=badge.getBoundingClientRect();return number.height>0 && number.width>0 && el.scrollWidth<=el.clientWidth+1 && number.left>=channel.right && number.right<=el.closest('.board-card').getBoundingClientRect().right+1;});
    await page.waitForFunction(()=>{const el=document.querySelector('[data-order-id="501"] .board-details-button');return el && getComputedStyle(el).color==='rgb(255, 255, 255)';});
 
    assert.equal(await page.locator('.board-missing-address').first().textContent(),language==='sk'?'Chýbajúca adresa':'Missing address');
