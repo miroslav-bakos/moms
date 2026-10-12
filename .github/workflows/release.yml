@@ -42,6 +42,10 @@ jobs:
       - name: Verify successful trusted build
         shell: bash
         run: |
+          if [[ "$TARGET_SHA" != "$GITHUB_SHA" ]]; then
+            echo 'Select the main commit used to dispatch this workflow; rebuild if main advanced.' >&2
+            exit 1
+          fi
           [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
           [[ "$VERIFY_RUN_ID" =~ ^[0-9]+$ ]]
           gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN_ID" > "$RUNNER_TEMP/build.json"

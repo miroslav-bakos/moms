@@ -23,6 +23,8 @@ when another maintainer joins. A merge is not a release or a production deployme
    builds from an older commit.
 4. Run **Publish verified pilot release** from `main`, supplying the exact SHA,
    successful Desktop bundles and Verify run IDs, and matching unused version tag.
+   Dispatch while `main` still points to that SHA; if it advanced during building,
+   test/build the newer commit first. Publication provenance must identify the same SHA.
    The workflow checks both runs, main ancestry, package version, all five archives,
    source contents, checksums and privacy boundaries before publishing a prerelease.
 5. Check the release page and downloadable assets. Existing tags and assets must
