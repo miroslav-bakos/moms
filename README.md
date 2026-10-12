@@ -69,6 +69,12 @@ Review recorded costs and contribution by channel, month and product. This view 
 
 ![English recorded-cost profitability view with fictional amounts](docs/screenshots/profit-en.webp)
 
+## Native installer downloads
+
+The [pilot release downloads](https://github.com/miroslav-bakos/moms/releases/tag/v0.1.0) provide bundled installers for macOS Apple Silicon, macOS Intel, Raspberry Pi ARM64, Linux x64 and Windows x64. Choose your architecture, verify the included SHA-256 checksum and extract the archive. Run `Install-MOMS.command` on a Mac, `Install-MOMS.sh` on Linux/Pi or `Install-MOMS.cmd` on Windows, then open `http://localhost:3080`.
+
+These are unsigned pilot bundles, with native CI installation/update/recovery checks; real-device acceptance is still a pilot step. See the [Mac/Pi testing guide](docs/NATIVE-BUILDS.md). Raspberry Pi requires a 64-bit OS.
+
 ## Quick start with Docker
 
 Install Docker Engine/Desktop with Compose, then in this repository:
@@ -104,7 +110,7 @@ Docker keeps the database in a named volume and mounts `settings/`, `labels/` an
 
 After backing up, update your checkout and run `docker compose up -d --build`. Do not use `docker compose down -v` unless you intend to delete database volumes.
 
-[Native build downloads and Mac/Pi pilot testing](docs/NATIVE-BUILDS.md) describes GitHub-built bundles for macOS Apple Silicon/Intel and Raspberry Pi ARM64. [Desktop installation](docs/DESKTOP.md) documents the native launcher and bundle tooling. Windows/macOS packaging still needs native acceptance testing; a source repository is not a promise of a tested installer for every platform.
+[Native build downloads and Mac/Pi pilot testing](docs/NATIVE-BUILDS.md) describes GitHub-built bundles for macOS Apple Silicon/Intel and Raspberry Pi ARM64. [Desktop installation](docs/DESKTOP.md) documents the native launcher and bundle tooling. Native CI checks installation and recovery; hardware, login/reboot and signing/notarization acceptance remain separate pilot steps.
 
 ## Development
 

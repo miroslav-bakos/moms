@@ -1,0 +1,60 @@
+name: Publish verified pilot release
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful Desktop bundles run ID
+        required: true
+      target_sha:
+        description: Reviewed release source commit
+        required: true
+      tag:
+        description: Version tag matching bundle manifests
+        required: true
+        default: v0.1.0
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      TARGET_SHA: ${{ inputs.target_sha }}
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_sha }}
+          fetch-depth: 0
+      - name: Verify release safety checks
+        run: PYTHONDONTWRITEBYTECODE=1 python3 .github/scripts/test-validate-release.py
+      - name: Verify successful trusted build
+        shell: bash
+        run: |
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$TARGET_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN_ID" > "$RUNNER_TEMP/build.json"
+          python3 - "$RUNNER_TEMP/build.json" <<'PY'
+          import json, subprocess, sys
+          run = json.load(open(sys.argv[1]))
+          assert run['status'] == 'completed' and run['conclusion'] == 'success'
+          assert run['path'] == '.github/workflows/desktop.yml' and run['head_branch'] == 'main'
+          subprocess.run(['git', 'merge-base', '--is-ancestor', run['head_sha'], 'HEAD'], check=True)
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/native-artifacts
+      - name: Verify checksums, source, privacy boundaries and installers
+        run: python3 .github/scripts/validate-release.py "$RUNNER_TEMP/native-artifacts" "$RELEASE_TAG"
+      - name: Publish pilot release
+        shell: bash
+        run: |
+          gh release create "$RELEASE_TAG" "$RUNNER_TEMP"/native-artifacts/*/*.tar.gz "$RUNNER_TEMP"/native-artifacts/*/*.sha256 --target "$TARGET_SHA" --title "MOMS $RELEASE_TAG — pilot" --notes-file .github/RELEASE-NOTES.md --prerelease
+          gh release view "$RELEASE_TAG" --json url,isDraft,isPrerelease,assets --jq '{url,isDraft,isPrerelease,assets:[.assets[].name]}'
