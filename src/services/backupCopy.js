@@ -11,7 +11,7 @@ async function copy(source,directory){
   if(fs.existsSync(destination))throw new Error('Backup copy already exists with different contents.');
   await fs.promises.copyFile(source,partial,fs.constants.COPYFILE_EXCL);await fs.promises.chmod(partial,0o600);
   if(await hash(partial)!==expected)throw new Error('Backup copy checksum mismatch.');
-  const file=await fs.promises.open(partial,'r');try{await file.sync();}finally{await file.close();}
+  const file=await fs.promises.open(partial,'r+');try{await file.sync();}finally{await file.close();}
   await fs.promises.rename(partial,destination);
  }finally{await fs.promises.unlink(partial).catch(()=>{});}
 }
