@@ -112,7 +112,11 @@ Use Node.js 22 and PostgreSQL 16. Run `npm ci`, then `npm run verify` for offlin
 
 ## Support and contributions
 
-MOMS is free. If you find it useful, you can [support development via PayPal](https://www.paypal.com/donate/?business=7TG8WFWH5K79Y&no_recurring=0&item_name=for+MOMS+development&currency_code=EUR). Contributions are entirely optional, unlock no additional features and do not purchase support.
+MOMS is free. If you find it useful, you can support its development via PayPal.
+
+[![Donate via PayPal](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/donate/?business=7TG8WFWH5K79Y&no_recurring=0&item_name=for+MOMS+development&currency_code=EUR)
+
+Contributions are entirely optional, unlock no additional features and do not purchase support.
 
 This is a spare-time project, provided as-is without warranty to the extent permitted by law. Support and updates depend on the maintainer's availability; response times, fixes and continued development are not guaranteed. A contribution does not purchase support.
 
