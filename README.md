@@ -32,6 +32,34 @@ See [installation and configuration](docs/INSTALLATION.md), [marketplace connect
 
 Screenshots and project overview: [moms.miroslavbakos.com](https://moms.miroslavbakos.com/). Website screenshots contain fictional demo data.
 
+## Screenshots (English interface)
+
+These screenshots show the real MOMS interface with synthetic demo orders from SAShE, Etsy, Amazon and Shopify. All customer names, addresses, order references, products and amounts are fictional. Demo data is not seeded into a fresh installation; sample names and product labels include Slovak and English text.
+
+### Orders and production board
+
+Follow orders across production stages, with marketplace badges, deadlines and order totals.
+
+![English order board with fictional SAShE, Etsy, Amazon and Shopify orders](docs/screenshots/board-en.webp)
+
+### Inventory and product recipes
+
+See finished stock, recipe materials and quantities still needed for production.
+
+![English inventory view with fictional products, recipes and stock](docs/screenshots/inventory-en.webp)
+
+### Sales overview
+
+Compare order totals by period and marketplace, with currencies kept separate.
+
+![English sales overview with fictional marketplace totals](docs/screenshots/marketing-en.webp)
+
+### Profit after recorded costs
+
+Review recorded costs and contribution by channel, month and product. This view is not net profit or a tax ledger.
+
+![English recorded-cost profitability view with fictional amounts](docs/screenshots/profit-en.webp)
+
 ## Quick start with Docker
 
 Install Docker Engine/Desktop with Compose, then in this repository:
