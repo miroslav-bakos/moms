@@ -3,7 +3,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {inventory}=require('./build-desktop');
 const {install,verify,state}=require('../src/desktop/install');
 const {request}=require('../src/desktop/runtime');
-const temp=fs.mkdtempSync(path.join(os.tmpdir(),'moms-installer-'));
+const temp=fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(),'moms-installer-')));
 let verificationStage='offline';
 function manifest(directory,version){
   const value={format:1,platform:process.platform,arch:process.arch,version,nodeMajor:22,postgresMajor:16,files:inventory(directory)};

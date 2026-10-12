@@ -8,7 +8,7 @@ const { Supervisor } = require('../src/desktop/supervisor');
 const { definition, configure } = require('../src/desktop/autostart');
 const { dataDirectory, desktopEnvironment, acquire, release, readOwner, request } = require('../src/desktop/runtime');
 const { options } = require('./desktop');
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'moms-desktop-'));
+const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'moms-desktop-')));
 const tick = () => new Promise(resolve => setTimeout(resolve, 10));
 
 async function offline() {
