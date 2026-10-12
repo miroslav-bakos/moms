@@ -51,7 +51,7 @@ function writeLaunchers(root,release){
 }
 async function install({bundle,root,dataRoot,rollback=false,start=true,run=execute}){
   if(!path.isAbsolute(root||''))throw new Error('Installation root must be absolute.');
-  root=path.resolve(root);fs.mkdirSync(root,{recursive:true,mode:0o700});
+  root=path.resolve(root);fs.mkdirSync(root,{recursive:true,mode:0o700});root=fs.realpathSync(root);
   const old=state(root);dataRoot=dataDirectory(dataRoot||old?.dataRoot);
   if(dataRoot===root||dataRoot.startsWith(root+path.sep)||root.startsWith(dataRoot+path.sep))throw new Error('Application releases and customer data must be in separate directories.');
   if(old&&dataRoot!==old.dataRoot)throw new Error('An update cannot switch customer data directories.');

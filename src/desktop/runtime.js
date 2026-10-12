@@ -10,7 +10,15 @@ const { Supervisor } = require('./supervisor');
 
 function dataDirectory(value = process.env.MOMS_DATA_DIR || defaultDataDirectory()) {
   if (!path.isAbsolute(value)) throw new Error('Desktop data directory must be absolute.');
-  return fs.existsSync(value) ? fs.realpathSync(value) : path.resolve(value);
+  // Resolve existing ancestors too: macOS /var is a symlink even before the
+  // data directory is created. First install and subsequent updates must agree.
+  let ancestor = path.resolve(value);
+  const missing = [];
+  while (!fs.existsSync(ancestor)) {
+    missing.unshift(path.basename(ancestor));
+    ancestor = path.dirname(ancestor);
+  }
+  return path.join(fs.realpathSync(ancestor), ...missing);
 }
 function desktopEnvironment(dataRoot, env) {
   const file = path.join(dataRoot, '.env');

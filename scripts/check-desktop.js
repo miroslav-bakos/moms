@@ -12,6 +12,15 @@ const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'moms-desktop-'));
 const tick = () => new Promise(resolve => setTimeout(resolve, 10));
 
 async function offline() {
+  const actualParent = path.join(temp, 'Real Data Parent');
+  const aliasParent = path.join(temp, 'Data Parent Alias');
+  fs.mkdirSync(actualParent);
+  fs.symlinkSync(actualParent, aliasParent, process.platform === 'win32' ? 'junction' : 'dir');
+  const aliasedData = path.join(aliasParent, 'New Data');
+  const beforeCreation = dataDirectory(aliasedData);
+  fs.mkdirSync(aliasedData);
+  assert.equal(dataDirectory(aliasedData), beforeCreation, 'Data identity remains stable through a symlinked parent after first install');
+  assert.equal(beforeCreation, fs.realpathSync(aliasedData));
   const children = [];
   const supervisor = new Supervisor({ retryDelay: 1, stopTimeout: 1000, spawn: () => {
     const child = new EventEmitter(); child.pid = children.length + 1; child.connected = true;
@@ -63,7 +72,7 @@ async function offline() {
   fs.writeFileSync(invalid, '{"token":"sensitive-fixture" invalid');
   assert.throws(() => readOwner(dataRoot), error => !error.message.includes('sensitive-fixture') && /private desktop lock/.test(error.message));
   fs.unlinkSync(invalid); fs.rmdirSync(path.dirname(invalid));
-  const base = { dataRoot, executable: '/opt/Node & MOMS/node', script: '/opt/MOMS $ "%/desktop.js', home: temp, env: { XDG_CONFIG_HOME: path.join(temp, 'Config') } };
+  const base = { dataRoot, executable: '/opt/Node & MOMS/node', script: '/opt/MOMS $ "%/desktop.js', home: temp.replace(/^[A-Za-z]:/, '').replace(/\\/g, '/'), env: { XDG_CONFIG_HOME: path.join(temp, 'Config').replace(/^[A-Za-z]:/, '').replace(/\\/g, '/') } };
   const linux = definition({ ...base, platform: 'linux' });
   assert.match(linux.content, /Terminal=false/); assert.match(linux.content, /%%/); assert.match(linux.content, /\\\\\$/);
   const enabledFile = configure(true, { ...base, platform: 'linux' }); assert(fs.existsSync(enabledFile));

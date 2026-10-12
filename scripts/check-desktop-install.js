@@ -83,4 +83,4 @@ async function actual(bundle){
 (async()=>{
   try{const index=process.argv.indexOf('--bundle');if(index>=0)await actual(path.resolve(process.argv[index+1]));else await offline();}
   finally{fs.rmSync(temp,{recursive:true,force:true});}
-})().catch(()=>{console.error('Installer verification failed at '+verificationStage+'. Private fixture secrets are not logged.');process.exitCode=1;});
+})().catch(error=>{console.error('Installer verification failed at '+verificationStage+'. Private fixture secrets are not logged.');if(verificationStage==='offline')console.error(error.stack);process.exitCode=1;});
