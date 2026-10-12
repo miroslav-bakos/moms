@@ -14,6 +14,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+      - run: PYTHONDONTWRITEBYTECODE=1 python3 .github/scripts/test-release-gates.py
+      - run: PYTHONDONTWRITEBYTECODE=1 python3 .github/scripts/test-validate-release.py
       - run: sh scripts/verify-db.sh
   browser:
     runs-on: ubuntu-latest

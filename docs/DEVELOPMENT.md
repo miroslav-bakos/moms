@@ -16,7 +16,7 @@ The runner starts each check in a separate Node process with bounded time/output
 
 For frontend behavior use Playwright against mocked routes or a seeded, disposable app. Cover affected actions, errors, desktop/mobile and EN/SK. Only mocked browser checks are included in this public repository. Do not describe skipped browser tests as passed.
 
-Run targeted verification while editing, then full offline verification before commit and isolated DB checks when relevant. Review `git diff --check`, commit, let the configured deployment hook finish, and check `/health`. Do not rerun unrelated suites without a new change or failure. CI runs the same offline and isolated DB commands; it never deploys.
+Run targeted verification while editing, then full offline verification before commit and isolated DB checks when relevant. Review `git diff --check`, commit on a feature branch, and open a pull request. Merge only after required checks pass. Publishing and deploying a release are separate, explicit actions; see [RELEASING.md](RELEASING.md). Do not rerun unrelated suites without a new change or failure. CI runs the same offline and isolated DB commands; it never deploys.
 
 Archive UI regression with mocked APIs (no deployed app or credentials): after installing `testing` dependencies and Chromium, run `node testing/archive-cards.mock.cjs` from the repository root. It uses `@playwright/test`; `MOMS_PLAYWRIGHT_MODULE` can point to an existing Playwright installation. Optional `MOMS_UI_SCREENSHOTS=/tmp/archive` saves desktop/mobile PNGs. This standalone mock test does not load the legacy live-target Playwright configuration.
 
