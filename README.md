@@ -114,7 +114,7 @@ Use Node.js 22 and PostgreSQL 16. Run `npm ci`, then `npm run verify` for offlin
 
 MOMS is free. If you find it useful, you can support its development via PayPal.
 
-[![Donate via PayPal](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/donate/?business=7TG8WFWH5K79Y&no_recurring=0&item_name=for+MOMS+development&currency_code=EUR)
+[![Donate via PayPal](https://img.shields.io/badge/Donate_via_PayPal-003087?style=for-the-badge&logo=paypal&logoColor=white)](https://www.paypal.com/donate/?business=7TG8WFWH5K79Y&no_recurring=0&item_name=for+MOMS+development&currency_code=EUR)
 
 Contributions are entirely optional, unlock no additional features and do not purchase support.
 
