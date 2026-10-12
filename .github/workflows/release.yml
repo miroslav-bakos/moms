@@ -35,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.target_sha }}
+          ref: main
           fetch-depth: 0
       - name: Verify release safety checks
         run: PYTHONDONTWRITEBYTECODE=1 python3 .github/scripts/test-validate-release.py
@@ -48,6 +48,11 @@ jobs:
           gh api "repos/$GH_REPO/actions/runs/$VERIFY_RUN_ID" > "$RUNNER_TEMP/verify.json"
           git fetch origin main --tags
           python3 .github/scripts/validate-release-gates.py "$RUNNER_TEMP/build.json" "$RUNNER_TEMP/verify.json" "$TARGET_SHA" "$RELEASE_TAG" "$GH_REPO"
+      - name: Check out verified release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_sha }}
+          fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
           run-id: ${{ inputs.build_run_id }}

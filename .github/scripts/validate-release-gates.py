@@ -24,9 +24,9 @@ def validate(build, checks, sha, tag, repository, version):
 
 if __name__ == '__main__':
     build_path, checks_path, sha, tag, repository = sys.argv[1:]
-    validate(json.load(open(build_path)), json.load(open(checks_path)), sha, tag, repository,
-             json.load(open('package.json'))['version'])
-    assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip() == sha
+    assert re.fullmatch(r'[a-f0-9]{40}', sha), 'Expected full commit SHA'
     subprocess.run(['git', 'merge-base', '--is-ancestor', sha, 'origin/main'], check=True)
+    version = json.loads(subprocess.check_output(['git', 'show', sha + ':package.json'], text=True))['version']
+    validate(json.load(open(build_path)), json.load(open(checks_path)), sha, tag, repository, version)
     assert subprocess.run(['git', 'show-ref', '--verify', '--quiet', 'refs/tags/' + tag]).returncode == 1, 'Release tag already exists'
     print('Exact release commit, version, main ancestry and both CI gates verified.')
