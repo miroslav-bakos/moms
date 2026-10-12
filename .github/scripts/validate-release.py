@@ -18,35 +18,43 @@ def validate(archive, platform, arch, version, tracked, repo):
     checksum = archive.with_name(archive.name + '.sha256').read_text().split()
     with archive.open('rb') as stream:
         assert checksum == [digest(stream), archive.name], 'Archive checksum mismatch'
-    with tarfile.open(archive, 'r:gz') as bundle:
-        members = bundle.getmembers()
-        names = [member.name for member in members]
-        assert len(set(names)) == len(names), 'Duplicate archive paths'
-        for member in members:
+    members = {}
+    manifest = None
+    # Stream twice, never repeatedly seek backwards through compressed runtimes.
+    with tarfile.open(archive, 'r|gz') as bundle:
+        for member in bundle:
+            assert member.name not in members, 'Duplicate archive paths'
+            members[member.name] = member
             parts = PurePosixPath(member.name).parts
             assert parts and parts[0] == 'moms-bundle' and '..' not in parts, 'Unsafe archive path'
             assert member.isdir() or member.isfile(), 'Nonregular archive entry'
             if len(parts) > 1:
                 assert parts[1] not in {'.git', '.beads', 'settings', 'backups', 'data', 'labels', 'recovery-snapshots'}, 'Private runtime directory'
             assert '.env' not in parts, 'Private environment file'
-        manifest = json.load(bundle.extractfile('moms-bundle/desktop-manifest.json'))
-        assert (manifest['format'], manifest['platform'], manifest['arch'], manifest['version'], manifest['nodeMajor'], manifest['postgresMajor']) == (1, platform, arch, version, 22, 16), 'Unexpected native target/version'
-        paths = [record['path'] for record in manifest['files']]
-        assert len(set(paths)) == len(paths), 'Duplicate manifest paths'
-        assert {m.name for m in members if m.isfile()} == {'moms-bundle/' + p for p in paths} | {'moms-bundle/desktop-manifest.json'}, 'Manifest file inventory differs'
-        suffix = '.exe' if platform == 'win32' else ''
-        installer = 'Install-MOMS.cmd' if platform == 'win32' else 'Install-MOMS.command' if platform == 'darwin' else 'Install-MOMS.sh'
-        required = {'LICENSE', 'NOTICE', 'runtime/NODE-LICENSE', 'runtime/POSTGRESQL-LICENSE', 'scripts/desktop.js', 'scripts/install-desktop.js', 'src/server.js', 'runtime/node' + suffix, 'runtime/postgresql/bin/postgres' + suffix, installer}
-        assert required <= set(paths), 'Incomplete installer or licence notices'
-        if platform != 'win32':
-            assert bundle.getmember('moms-bundle/' + installer).mode & 0o111, 'Installer not executable'
-        for record in manifest['files']:
-            member = bundle.getmember('moms-bundle/' + record['path'])
+            if member.name == 'moms-bundle/desktop-manifest.json':
+                manifest = json.load(bundle.extractfile(member))
+    assert manifest is not None, 'Missing bundle manifest'
+    assert (manifest['format'], manifest['platform'], manifest['arch'], manifest['version'], manifest['nodeMajor'], manifest['postgresMajor']) == (1, platform, arch, version, 22, 16), 'Unexpected native target/version'
+    records = {record['path']: record for record in manifest['files']}
+    assert len(records) == len(manifest['files']), 'Duplicate manifest paths'
+    assert {name for name, m in members.items() if m.isfile()} == {'moms-bundle/' + p for p in records} | {'moms-bundle/desktop-manifest.json'}, 'Manifest file inventory differs'
+    suffix = '.exe' if platform == 'win32' else ''
+    installer = 'Install-MOMS.cmd' if platform == 'win32' else 'Install-MOMS.command' if platform == 'darwin' else 'Install-MOMS.sh'
+    required = {'LICENSE', 'NOTICE', 'runtime/NODE-LICENSE', 'runtime/POSTGRESQL-LICENSE', 'scripts/desktop.js', 'scripts/install-desktop.js', 'src/server.js', 'runtime/node' + suffix, 'runtime/postgresql/bin/postgres' + suffix, installer}
+    assert required <= set(records), 'Incomplete installer or licence notices'
+    if platform != 'win32':
+        assert members['moms-bundle/' + installer].mode & 0o111, 'Installer not executable'
+    with tarfile.open(archive, 'r|gz') as bundle:
+        for member in bundle:
+            if not member.isfile() or member.name == 'moms-bundle/desktop-manifest.json':
+                continue
+            source_path = member.name[len('moms-bundle/'):]
+            record = records[source_path]
             assert member.size == record['bytes'], 'File size mismatch'
             actual = digest(bundle.extractfile(member))
             assert actual == record['sha256'], 'Bundle integrity mismatch'
-            if record['path'] in tracked:
-                with (repo / record['path']).open('rb') as source:
+            if source_path in tracked:
+                with (repo / source_path).open('rb') as source:
                     assert actual == digest(source), 'Bundled source differs from release source'
 
 def main():
