@@ -1,0 +1,74 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    profiles: [lan-https]
+    restart: unless-stopped
+    ports:
+      - "${MOMS_HTTPS_BIND_ADDRESS:-${MOMS_LAN_ADDRESS:-127.0.0.1}}:${MOMS_HTTPS_PORT:-8443}:443"
+    environment:
+      MOMS_LAN_ADDRESS: ${MOMS_HTTPS_BIND_ADDRESS:-${MOMS_LAN_ADDRESS:-127.0.0.1}}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    networks:
+      https_ingress: {}
+      https_proxy:
+        ipv4_address: ${MOMS_TRUST_PROXY_IP:-172.30.253.2}
+
+  app:
+    build: .
+    init: true
+    stop_grace_period: 70s
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      SETTINGS_DIR: /config
+      MOMS_TRUST_PROXY_IP: ${MOMS_TRUST_PROXY_IP:-172.30.253.2}
+      MOMS_LAN_ADDRESS: ${MOMS_LAN_ADDRESS:-}
+      MOMS_DOCKER: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3080:3080"
+    volumes:
+      - ./labels:/app/labels
+      - ./backups:/backup
+      - ./settings:/config
+      - ./https-public:/https-public:ro
+    networks:
+      default: {}
+      https_proxy:
+        ipv4_address: 172.30.253.3
+
+  db:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: orders
+      POSTGRES_PASSWORD: orders
+      POSTGRES_DB: orders
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orders -d orders"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  https_ingress: {}
+  https_proxy:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${MOMS_HTTPS_SUBNET:-172.30.253.0/29}

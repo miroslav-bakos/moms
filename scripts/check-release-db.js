@@ -1,0 +1,21 @@
+'use strict';
+const assert=require('node:assert/strict');
+module.exports=async(root,db)=>{
+ const {config}=require('../src/config');config.basicAuthUser='release-fixture';config.basicAuthPassword='release-fixture-password';
+ const sessions=require('../src/services/authSessions');
+ const token=await sessions.issue();assert(await sessions.authenticate(token));await sessions.revoke(token);assert(!await sessions.authenticate(token));
+ const expired=await sessions.issue();await db.query("UPDATE mobile_devices SET expires_at=now()-interval '1 second' WHERE token_hash=$1",[sessions.hash(expired)]);assert(!await sessions.authenticate(expired));
+ const changed=await sessions.issue();config.basicAuthPassword+='changed';assert(!await sessions.authenticate(changed));
+ const channel=require('../src/services/channelState');await channel.getChannelState('sashe');
+ await db.query("UPDATE channel_state SET last_poll_started_at=NULL,last_error=NULL WHERE channel='sashe'");
+ const starts=await Promise.all([channel.markPollStarted('sashe'),channel.markPollStarted('sashe')]);assert.equal(starts.filter(Boolean).length,1,'Only one concurrent SAShE poll acquires a slot');
+ assert.equal(await channel.markPollStarted('sashe'),false);await channel.markPollError('sashe',new Error('Connection limit reached. Wait!'));
+ await db.query("UPDATE channel_state SET last_poll_started_at=now()-interval '20 minutes' WHERE channel='sashe'");assert.equal(await channel.markPollStarted('sashe'),false,'Rate limit extends cooldown');
+ await db.query("UPDATE channel_state SET last_poll_started_at=now()-interval '61 minutes' WHERE channel='sashe'");assert.equal(await channel.markPollStarted('sashe'),true);
+ const owner=sessions.owner(),session=await sessions.issue();
+ await db.query("INSERT INTO oauth_states(state,channel,expires_at,owner_hash,session_hash) VALUES('fixture-state','etsy',now()+interval '5 minutes',$1,$2)",[owner,sessions.hash(session)]);
+ const consume=()=>db.query("DELETE FROM oauth_states WHERE state='fixture-state' AND owner_hash=$1 AND EXISTS(SELECT 1 FROM mobile_devices d WHERE d.token_hash=oauth_states.session_hash AND d.owner_hash=oauth_states.owner_hash AND d.expires_at>now()) RETURNING state",[owner]);
+ await sessions.revoke(session);assert.equal((await consume()).rowCount,0,'Revoked session cannot finish account linking');
+ await require('./check-label-operations-db')(db);
+ console.log('PASS isolated login expiry/revocation/credential change, OAuth owner migration, persistent SAShE cooldown and concurrent poll acquisition.');
+};

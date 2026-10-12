@@ -1,0 +1,13 @@
+MOMS — Multichannel Order Management System
+Created and maintained by Miroslav Bakoš
+Contact: miroslav@miroslavbakos.com
+
+Copyright (C) 2026 Miroslav Bakoš, for copyrightable contributions.
+Project code is distributed under GNU GPL version 3 only (GPL-3.0-only).
+See LICENSE for the full terms, including the warranty disclaimer.
+
+Third-party components remain subject to their own licences. In particular,
+src/public/vendor includes the upstream licence notices for ZXing and flatpickr.
+Installed npm dependencies carry their licences in their respective packages.
+Desktop bundles include Node.js and PostgreSQL licence notices. Redistributors
+must retain applicable notices and comply with source-distribution obligations.

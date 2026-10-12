@@ -1,0 +1,12 @@
+{
+	auto_https disable_redirects
+	skip_install_trust
+    default_sni {$MOMS_LAN_ADDRESS}
+}
+
+https://{$MOMS_LAN_ADDRESS}:443 {
+	tls internal
+	reverse_proxy app:3080 {
+		header_up X-Forwarded-Proto https
+	}
+}

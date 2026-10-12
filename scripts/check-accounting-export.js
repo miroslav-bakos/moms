@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict');
+const file=require.resolve('../src/db');require.cache[file]={loaded:true,exports:{}};
+const {options,row,csv}=require('../src/services/accountingExport');
+for(const body of [{},{from:'2026-02-30',to:'2026-03-01'},{from:'2026-01-02',to:'2026-01-01'},{from:'2020-01-01',to:'2026-01-01'}])assert.throws(()=>options(body),e=>e.statusCode===400);
+assert.equal(options({from:'2026-01-01',to:'2026-12-31',language:'sk'}).language,'sk');
+const snapshot={amount:'2.000000',currency:'EUR',missing:[]};const entered={currency:'EUR',shipping_cost:'1',marketplace_fee:'0',payment_fee:'0',other_cost:'0'};
+const order={id:1,external_order_id:'=cmd()',created_at:'2026-01-01T01:00:00Z',channel:'manual',business_outcome:'active',revenue_amount:'5',revenue_currency:'EUR'};
+let result=row(order,entered,snapshot,{});assert.equal(result.profit,'2.000000');assert.equal(result.total,'3.000000');assert.equal(result.missing,'');assert(csv([result],'sk').toString().includes("'="));
+result=row({...order,revenue_currency:'USD'},entered,snapshot,{});assert.equal(result.profit,null);assert.equal(result.revenue_currency,'USD');assert.equal(result.currency,'EUR');assert(result.missing.includes('Currencies do not match'));
+result=row(order,{...entered,shipping_cost:null},snapshot,{});assert.equal(result.total,null);assert(result.missing.includes('shipping_cost'));
+result=row({...order,business_outcome:'refunded'},entered,snapshot,{});assert.equal(result.profit,null);
+result=row({...order,revenue_amount:'12'},{...entered,vat:{mode:'payer',revenue_vat:'2',deductible_vat:'0.5'}},snapshot,{});
+assert.equal(result.revenue,'10.000000');assert.equal(result.total,'2.500000');assert.equal(result.profit,'7.500000');assert.equal(result.recorded_revenue,'12');assert.equal(result.vat_mode,'payer');
+console.log('PASS accounting export: dates, fixed costs, missing costs, mixed currencies/refunds and formula protection');

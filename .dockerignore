@@ -1,0 +1,27 @@
+node_modules
+npm-debug.log
+.env
+data
+labels
+
+
+settings
+
+backups
+recovery-snapshots
+.git
+dist
+runtime
+https-public/
+
+.env.lan-*
+
+# Never bake local credentials or test installations into an image.
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.dump
+*.moms.gz
+testing/node_modules

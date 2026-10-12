@@ -1,0 +1,58 @@
+// Disposable app/API fixtures. No production calls or buyer notifications.
+const {chromium}=require('@playwright/test');
+const fs=require('node:fs'),http=require('node:http'),path=require('node:path'),assert=require('node:assert/strict');
+const {productionCost,orderCost}=require('../src/services/costMath');
+const inventory={materials:[],products:[],rules:[],manufacturers:[],shopping:[],movements:[],unmapped:[],aliases:{}};
+const server=http.createServer((req,res)=>{const file=path.join(__dirname,'../src/public',req.url.split('?')[0]==='/'?'index.html':req.url.split('?')[0]);try{res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':file.endsWith('.json')?'application/json':'text/html');res.end(fs.readFileSync(file));}catch(_){res.writeHead(404);res.end();}});
+(async()=>{await new Promise(r=>server.listen(0,'127.0.0.1',r));const browser=await chromium.launch({headless:true,...(process.env.MOMS_CHROMIUM_PATH?{executablePath:process.env.MOMS_CHROMIUM_PATH}:{})});try{
+ for(const lang of ['en','sk'])for(const width of [1500,390]){
+ const page=await browser.newPage({viewport:{width,height:900},serviceWorkers:'block'}),errors=[],writes=[],dialogs=[];let accept=false,outcome='confirmed',extraArchive=[];
+ const orders=[{id:42,external_order_id:'406-3275269-8179528',channel:'amazon',vendor:'Amazon',workflow_status:'crafted',business_outcome:'active',tracking_code:'RR123SK',skus:'Fixture <script>throw 1</script>',address:'Fixture',created_at:'2026-10-01',ship_by_date:'2026-10-08',shipped:false},{id:43,external_order_id:'Older',channel:'manual',vendor:'Manual',workflow_status:'shipped',business_outcome:'active',skus:'Fixture',address:'Fixture',dispatched_at:'2026-09-01',created_at:'2026-10-07',shipped:false}];
+ page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>{dialogs.push(d.message());return accept?d.accept():d.dismiss();});await page.addInitScript(()=>{localStorage.setItem('mobile-connect-seen','true');localStorage.setItem('moms-local-setup-v1','{"done":true}');});
+ await page.route('**/api/**',async route=>{const req=route.request(),url=new URL(req.url());let data=[];
+ if(url.pathname==='/api/orders/42'&&req.method()==='PATCH'){const body=req.postDataJSON();writes.push(body);if(body.shipped){assert.equal(orders[0].marketplace_dispatch_state,'confirmed');orders[0].shipped=true;}else{assert.equal(body.confirm_marketplace_dispatch,true);Object.assign(orders[0],{workflow_status:'shipped',shipped:true,dispatched_at:'2026-10-08',marketplace_dispatch_state:outcome,dispatch_result:{state:outcome}});}data=orders[0];}
+ else if(url.pathname==='/api/orders/workflow'){const body=req.postDataJSON();writes.push(body);assert.equal(body.confirm_marketplace_dispatch,true);data=[{...orders[0],workflow_status:'shipped',shipped:true,dispatch_result:{state:outcome}}];}
+ else if(url.pathname==='/api/orders/42/costs')data={entered:{currency:'EUR',revision:0},estimate:orderCost(orders[0],productionCost(orders[0],inventory),{currency:'EUR'},true)};
+ else if(url.pathname==='/api/orders'){if(url.searchParams.get('status')==='archive'){const archived=[...orders.filter(o=>o.shipped),...extraArchive];data={orders:archived,total:archived.length};}else data=orders.filter(o=>!o.shipped);}
+ else if(url.pathname==='/api/workflow-statuses')data=[['new','NEW'],['in_progress','IN PROGRESS'],['crafted','CRAFTED'],['ready_for_pickup','READY FOR PICKUP'],['shipped','SHIPPED']].map(([id,label],position)=>({id,label,position}));
+ else if(url.pathname==='/api/inventory')data={materials:[],products:[],rules:[],manufacturers:[],shopping:[],movements:[],unmapped:[],aliases:{}};
+ else if(url.pathname==='/api/orders/42/fulfillment')data={channel:'amazon',business_outcome:'active',produced:true,lines:[],shipments:[],returns:[]};
+ else if(url.pathname==='/api/dashboard')data={openOrders:2,ordersThisMonth:2,ordersPreviousMonth:0,openByVendor:{Amazon:1,Manual:1},thisMonthByVendor:{},thisMonthByCountry:{},allTimeByCountry:{},dashboardPins:[]};
+ else if(url.pathname==='/api/config')data={channels:{},shipping:{}};
+ else if(url.pathname==='/api/branding')data={name:'MOMS',logo:null};
+ else if(['/api/tracking/statuses','/api/authorizations'].includes(url.pathname))data={};
+ return route.fulfill({json:data});});
+ await page.goto(`http://127.0.0.1:${server.address().port}/#board`);await page.waitForFunction(()=>state.openOrders.length===2);await page.evaluate(async l=>{await i18n.ready;await loadInventory();i18n.setLanguage(l);setView('board');state.boardStage='crafted';renderOrderBoard();},lang);
+ const moveShipped=async()=>{if(width>700){await page.locator('[data-order-id="42"]').click({position:{x:8,y:8}});await page.locator('#orderDetailsStatus').selectOption('shipped');await page.locator('#closeOrderDetails').click();}else await page.locator('[data-board-status="42"]').selectOption('shipped');};
+ await moveShipped();assert.equal(writes.length,0);assert.equal(await page.locator('[data-board-status="42"]').inputValue(),'crafted');assert(dialogs[0].includes('RR123SK'));assert(dialogs[0].includes('406-3275269-8179528'));
+ accept=true;await moveShipped();await page.waitForFunction(()=>!boardSaving);assert.equal(writes.length,1);assert((await page.locator('#boardMessage').textContent()).match(/confirmed|potvrdená/));assert.equal(await page.locator('[data-send-shipped-order="42"]').count(),0);
+ const shipped=await page.locator('#board-column-shipped .board-card').evaluateAll(nodes=>nodes.map(n=>n.dataset.orderId));assert.deepEqual(shipped,['42','43']);
+ assert(await page.evaluate(()=>!state.openOrders.some(o=>o.id===42)));
+ orders[0].shipped=false;orders[0].workflow_status='crafted';orders[0].marketplace_dispatch_state=null;await page.evaluate(rows=>{state.openOrders=rows;state.boardArchiveOrders=[];state.boardStage='crafted';renderOrderBoard();},orders);outcome='uncertain';await moveShipped();await page.waitForFunction(()=>!boardSaving);assert((await page.locator('#boardMessage').textContent()).match(/not confirmed|nie je potvrdená/));assert.equal(await page.locator('[data-send-shipped-order="42"]').count(),1);
+ accept=false;await page.locator('[data-send-shipped-order="42"]').click();assert.equal(writes.length,2);accept=true;outcome='confirmed';await page.locator('[data-send-shipped-order="42"]').click();await page.waitForFunction(()=>!boardSaving);assert.equal(writes.length,3);
+ orders[0].shipped=false;orders[0].workflow_status='crafted';await page.evaluate(rows=>{state.openOrders=rows;state.boardArchiveOrders=[];state.selectedOrderIds.add(42);updateSelectionBar();},orders);await page.evaluate(()=>document.querySelector('#changeSelectedStatus').click());await page.locator('#bulkStatusSelect').selectOption('shipped');accept=false;await page.locator('#bulkStatusSave').click();assert.equal(writes.length,3);assert(await page.locator('#bulkStatusDialog').isVisible());accept=true;await page.locator('#bulkStatusSave').click();await page.waitForFunction(()=>!bulkStatusBusy);assert.equal(writes.length,4);
+ // Both archive entry points must confirm remotely before archiving locally.
+ const resetArchive=async(channel='amazon')=>{orders[0].shipped=false;orders[0].workflow_status='crafted';orders[0].channel=channel;orders[0].marketplace_dispatch_state=null;await page.evaluate(rows=>{state.openOrders=rows.filter(o=>!o.shipped);state.boardArchiveOrders=[];state.boardStage='crafted';renderOrderBoard();},orders);};
+ const archiveSingle=()=>page.evaluate(()=>runBoardAction({dataset:{id:'42',boardAction:'archive'}}));
+ await resetArchive();const beforeArchive=writes.length;accept=false;await archiveSingle();assert.equal(writes.length,beforeArchive);
+ accept=true;outcome='uncertain';await archiveSingle();assert.equal(writes.length,beforeArchive+1);assert.equal(orders[0].shipped,true);assert.equal(writes.at(-1).workflow_status,'shipped');
+ outcome='confirmed';await archiveSingle();assert.equal(writes.length,beforeArchive+3);assert.equal(orders[0].shipped,true);assert.deepEqual(writes.at(-1),{shipped:true});
+ await resetArchive('shopify');outcome='rejected';await page.evaluate(()=>{state.selectedOrderIds.add(42);document.getElementById('markShipped').click();});await page.waitForFunction(()=>!document.getElementById('markShipped').disabled);assert.equal(orders[0].shipped,true);assert.equal(writes.at(-1).confirm_marketplace_dispatch,true);
+ outcome='confirmed';await page.evaluate(()=>{state.selectedOrderIds.add(42);document.getElementById('markShipped').click();});await page.waitForFunction(()=>!document.getElementById('markShipped').disabled);assert.equal(orders[0].shipped,true);assert.deepEqual(writes.at(-1),{shipped:true});
+ // Opening Shipped refreshes both lists: a newly archived card must be first,
+ // appear once, and use dispatch time even when its order/deadline is old.
+ orders[0].dispatched_at='2026-10-08T18:00:00+02:00';
+ extraArchive=[{...orders[0],id:44,external_order_id:'Newly archived <safe>',created_at:'2026-09-18',ship_by_date:'2026-09-18',dispatched_at:'2026-10-08T16:30:00Z',workflow_status:'crafted'}];
+ orders[1].dispatched_at='2026-10-08T17:00:00+02:00';
+ await page.evaluate(()=>{state.openOrders=[...state.openOrders,{id:44,workflow_status:'crafted',vendor:'Manual',channel:'manual',skus:'Fixture',shipped:false}];state.boardShippedCollapsed=true;renderOrderBoard();});
+ if(width===390)await page.locator('[data-board-stage="shipped"]').click();else await page.locator('[data-board-shipped-toggle]').click();
+ await page.waitForFunction(()=>state.boardArchiveOrders.some(o=>o.id===44)&&!state.openOrders.some(o=>o.id===44));
+ assert.deepEqual(await page.locator('#board-shipped-cards .board-card').evaluateAll(nodes=>nodes.map(n=>n.dataset.orderId)),['44','42','43']);
+ assert(await page.locator('#board-shipped-cards').isVisible());assert.equal(await page.locator('[data-order-id="44"]').count(),1);
+ assert((await page.locator('[data-order-id="44"] .board-order-number').textContent()).includes('<safe>'));assert.equal(await page.locator('[data-order-id="44"] safe').count(),0);
+ // Icon-only desktop rail remains navigable and keeps accessible labels.
+ if(width===1500){await page.locator('#sidebarToggle').click();assert(await page.locator('.topbar .top-nav').isVisible());assert.equal(await page.locator('.top-nav [data-view="inventory"] .desktop-nav-icon').isVisible(),true);if(lang==='sk')await page.screenshot({path:'/tmp/moms-sidebar-icons-1500.png'});const before=await page.locator('.top-nav [data-view="inventory"]').getAttribute('title');assert(before?.length>0);await page.locator('.top-nav [data-view="inventory"]').click();assert.equal(await page.evaluate(()=>state.activeView),'inventory');assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.locator('#sidebarToggle').click();assert(!await page.evaluate(()=>document.body.classList.contains('sidebar-hidden')));}else{assert(!await page.locator('#sidebarToggle').isVisible());assert(await page.locator('.mobile-bottom-nav').isVisible());}
+ if(lang==='sk'&&width===390)await page.screenshot({path:'/tmp/moms-shipped-confirm-390.png'});assert.equal(await page.locator('.board-card script').count(),0);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.deepEqual(errors,[]);await page.close();
+ }
+ console.log('PASS shipped dispatch EN/SK desktop/390px: archive confirmation, expansion refresh, latest dispatch ordering across timezones and old deadlines, unique archived cards, cancel/uncertain/rejected guards, escaping and no errors/overflow');
+}finally{await browser.close();server.close();}})().catch(e=>{console.error(e);server.close();process.exitCode=1;});

@@ -1,0 +1,31 @@
+'use strict';
+const assert=require('assert/strict');const fs=require('fs');const vm=require('vm');const path=require('path');
+const config={etsy:{enabled:true},shopify:{enabled:false}};
+let rows=[{channel:'etsy',enabled:false,enabled_override:false},{channel:'shopify',enabled:true,enabled_override:null}];
+const queries=[];
+const box={module:{exports:{}},require(name){if(name==='../config')return {config};if(name==='../db')return {query:async(sql,params)=>{queries.push({sql,params});return {rows};}};if(name==='../utils/dates')return {fallbackSince:()=>new Date(),subtractMinutes:value=>value,toDate:value=>value};throw new Error(name);}};
+vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/services/channelState.js'),'utf8'),box);
+const service=box.module.exports;
+(async()=>{
+ assert.equal(service.effectiveChannelEnabled('etsy',{enabled:false}),true,'Preserve env-enabled legacy behavior');
+ assert.equal(service.effectiveChannelEnabled('shopify',{enabled:true}),true,'Preserve database-enabled legacy behavior');
+ assert.equal(service.effectiveChannelEnabled('etsy',{enabled:true,enabled_override:false}),false,'Explicit disable beats environment');
+ assert.equal(service.effectiveChannelEnabled('shopify',{enabled:false,enabled_override:true}),true);
+ const list=await service.listChannelState();assert.equal(list[0].enabled,false);assert.equal(list[1].enabled,true);
+ await service.setChannelEnabled('etsy',false);assert(queries.at(-1).sql.includes('enabled_override'));assert.equal(queries.at(-1).params[1],false);
+ let polls=0;
+ const schedulerBox={module:{exports:{}},console,require(name){
+ if(name==='./config')return {config};
+ if(name==='./maintenance')return {isActive:()=>false};
+ if(name.startsWith('./channels/'))return {poll:async()=>{polls++;return {orders:[]};}};
+ if(name==='./services/channelState')return {...service,getChannelState:async()=>({enabled:true,enabled_override:false}),effectiveSince:()=>new Date(),markPollStarted:async()=>{},markPollSuccess:async()=>{},markPollError:async()=>{}};
+ if(name==='./services/orders')return {upsertOrder:async()=>{}};
+ if(name==='./services/events')return {logEvent:async()=>{}};
+ if(name==='./services/backup')return {performBackup:async()=>{}};
+ throw new Error(name);
+ }};
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/scheduler.js'),'utf8'),schedulerBox);
+ const result=await schedulerBox.module.exports.pollChannel('etsy');assert.equal(result.skipped,true);assert.equal(polls,0);
+ await schedulerBox.module.exports.pollChannel('etsy',{force:true});assert.equal(polls,1,'Manual forced polling remains available');
+ console.log('Channel enabling passed: legacy defaults, live settings, explicit disable and scheduler behavior');
+})().catch(err=>{console.error(err);process.exitCode=1;});

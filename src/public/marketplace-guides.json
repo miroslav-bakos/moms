@@ -1,0 +1,105 @@
+[
+  {
+    "name": "Etsy",
+    "steps": [
+      "Open the Etsy Developer Portal and sign in as your shop owner. For your own shop, choose Create a seller app, then Get started. Enter an app name (for example, My shop MOMS) and explain that you use it to manage your own orders. Read the terms and submit. Wait until Etsy approves the app.",
+      "In Your Apps, open your approved app. Copy its keystring into MOMS Client id and its shared secret into Client secret in Settings → Authorizations → Etsy. Do not enter your Etsy password. Leave Shop id empty for automatic discovery after authorization.",
+      "Enable the callback above. In Etsy app settings, add exactly the displayed Etsy address to the callback/redirect URLs. Save it in Etsy. Keep the scopes shown by MOMS; they cover order and listing operations.",
+      "Save the Etsy settings in MOMS. Quit and reopen the desktop app, then click Authorize in the Etsy card. Check the shop on the Etsy consent page and approve. Return to MOMS, enable synchronization and click Poll Now once. If authorization expires, start again from MOMS."
+    ],
+    "links": [
+      [
+        "Etsy Developer Portal",
+        "https://www.etsy.com/developers/register"
+      ],
+      [
+        "Seller app instructions",
+        "https://help.etsy.com/hc/en-gb/articles/41918478450967-How-to-Register-a-Seller-App-with-Etsy-s-API"
+      ],
+      [
+        "API keys and approval",
+        "https://developers.etsy.com/documentation/tutorials/quickstart/"
+      ],
+      [
+        "OAuth callback requirements",
+        "https://developers.etsy.com/documentation/essentials/authentication/"
+      ]
+    ]
+  },
+  {
+    "name": "Shopify",
+    "steps": [
+      "Sign in to the Shopify Dev Dashboard with the organization that owns your store. Choose Apps → Create app → Start from Dev Dashboard. Name the app for your shop. The client_credentials method only works when the app and store belong to the same organization.",
+      "Open Versions and create a version. For a non-embedded app, Shopify allows https://shopify.dev/apps/default-app-home as the App URL. Select the scopes listed in MOMS Shopify settings, release the version, then use Install app and choose your own store. Approve the installation.",
+      "In the app Settings, copy Client ID and Client secret into the matching MOMS fields. Enter the permanent shop domain ending in .myshopify.com, not your customer-facing domain. Set Authentication mode to client_credentials. Leave Access token empty.",
+      "Save, quit and reopen MOMS, enable Shopify synchronization and click Poll Now. MOMS obtains and renews tokens automatically. No callback or Authorize button is needed in this mode. Existing legacy tokens and OAuth connections can continue using oauth mode. Orders older than 60 days require Shopify approval for read_all_orders in addition to read_orders."
+    ],
+    "links": [
+      [
+        "Shopify Dev Dashboard",
+        "https://dev.shopify.com/dashboard"
+      ],
+      [
+        "Create and install an app",
+        "https://shopify.dev/docs/apps/build/dev-dashboard/create-apps-using-dev-dashboard"
+      ],
+      [
+        "Automatic client credentials",
+        "https://shopify.dev/docs/apps/build/authentication-authorization/client-credentials-grant"
+      ],
+      [
+        "Order access scopes",
+        "https://shopify.dev/docs/api/admin-graphql/2026-04/objects/Order"
+      ]
+    ]
+  },
+  {
+    "name": "Amazon",
+    "steps": [
+      "Use the primary owner of your Seller Central account. Open Apps and Services → Develop Apps. If migrated to Solution Provider Portal, open Settings → Developer Profile there. Register as a private developer for your own business, complete the contact, use-case and security questions accurately, then wait for Amazon approval.",
+      "In Developer Central, choose Add new app client and create a private SP-API app for your business. Request the roles needed for orders and merchant fulfillment. Shipping addresses require the appropriate restricted-data approval; MOMS cannot grant that permission. Keep the private app in draft status.",
+      "Open the app credentials and copy the Login with Amazon (LWA) Client ID and Client secret into MOMS. Next to your app, choose Authorize, then Authorize app for your seller account. Copy the resulting refresh token into MOMS Refresh token. This is not an AWS access key.",
+      "Set Amazon mode to private. Select your API region and marketplace IDs using Amazon’s official table below. Enter IDs in the MOMS country:ID format, separated by commas (for example, de:A1PA6795UKMFR9 for Germany). Save, quit and reopen MOMS, enable synchronization and click Poll Now. No callback is needed."
+    ],
+    "links": [
+      [
+        "Private developer registration",
+        "https://developer-docs.amazon/sp-api/docs/register-as-a-private-developer"
+      ],
+      [
+        "Application registration",
+        "https://developer-docs.amazon.com/sp-api/docs/registering-your-application"
+      ],
+      [
+        "Credentials",
+        "https://developer-docs.amazon.com/sp-api/docs/viewing-your-application-information-and-credentials"
+      ],
+      [
+        "Self-authorization",
+        "https://developer-docs.amazon/sp-api/docs/self-authorization"
+      ],
+      [
+        "Marketplace IDs",
+        "https://developer-docs.amazon.com/sp-api/docs/marketplace-ids"
+      ]
+    ]
+  },
+  {
+    "name": "SAShE",
+    "steps": [
+      "Sign in to your SAShE seller account. Open Môj obchod → Zákazky → Export. SAShE documents API access under Export dát and API prepojenie s vaším e-shopom. If access is not available, contact SAShE through the official integration page below and request API access for importing your own orders.",
+      "SAShE arranges integrations individually. Use the numeric user ID and API key supplied for your account; your shop name and login password are not API credentials. Enter them in MOMS Settings → Authorizations → SAShE. Save, quit and reopen MOMS.",
+      "Enable synchronization and click Poll Now once. No callback is needed. If SAShE reports Connection limit reached, wait: MOMS applies a one-hour cooldown after that error, and normally allows polling once every 15 minutes. The Cursor date is the last imported order date, not the last successful check."
+    ],
+    "links": [
+      [
+        "Export dát",
+        "https://www.sashe.sk/info/napoveda/predaj/vybavovanie-zakaziek/export-dat/"
+      ],
+      [
+        "API prepojenie a kontakt",
+        "https://www.sashe.sk/info/napoveda/predaj/vybavovanie-zakaziek/api-prepojenie-s-vasim-e-shopom"
+      ]
+    ]
+  }
+]

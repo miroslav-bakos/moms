@@ -1,0 +1,56 @@
+# Isolated test stack. No production .env, ports, labels, settings or DB volumes.
+services:
+  test-managed-desktop:
+    build:
+      context: .
+      target: desktop-verify
+    init: true
+    stop_grace_period: 70s
+    environment:
+      MOMS_POSTGRES_DIR: /usr/lib/postgresql/16
+      MOMS_DATA_DIR: /tmp/moms-managed-desktop
+      POLL_ON_START: 'false'
+  test-db:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_USER: moms_test
+      POSTGRES_PASSWORD: disposable_test_only
+      POSTGRES_DB: moms_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U moms_test -d moms_test']
+      interval: 1s
+      timeout: 5s
+      retries: 30
+  verify:
+    build: .
+    command: [node, scripts/verify.js, --db]
+    environment:
+      MOMS_TEST_DATABASE_URL: postgres://moms_test:disposable_test_only@test-db:5432/moms_test
+    depends_on:
+      test-db:
+        condition: service_healthy
+  test-app:
+    build: .
+    init: true
+    stop_grace_period: 70s
+    environment:
+      DATABASE_URL: postgres://moms_test:disposable_test_only@test-db:5432/moms_test
+      MOMS_DATA_DIR: /tmp/moms-lifecycle-data
+      POLL_ON_START: 'false'
+    depends_on:
+      test-db:
+        condition: service_healthy
+  test-desktop:
+    build: .
+    init: true
+    stop_grace_period: 70s
+    command: [sh, -c, 'node src/migrate.js && exec node scripts/desktop.js run']
+    environment:
+      DATABASE_URL: postgres://moms_test:disposable_test_only@test-db:5432/moms_test
+      MOMS_DATA_DIR: /tmp/moms-desktop-data
+      POLL_ON_START: 'false'
+    depends_on:
+      test-db:
+        condition: service_healthy

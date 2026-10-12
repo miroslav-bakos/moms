@@ -1,0 +1,11 @@
+{
+  "name": "local-orders-app-tests",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node free-edition.mock.cjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0"
+  }
+}

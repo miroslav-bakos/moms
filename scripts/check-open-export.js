@@ -1,0 +1,31 @@
+const assert=require('assert/strict');
+const {openExportOptions,columnValue}=require('../src/services/openExport');
+const helpers=require('../src/public/order-filters');
+const row={channel:'shopify',external_order_id:'gid-42',order_name:'#1371',source_payload:{order_number:1371},vendor:'Shopify',skus:'Paper_%',note:'Red',workflow_status:'crafted',workflow_label:'CRAFTED',label_created:false,created_at:new Date('2026-10-05T12:00:00Z'),tracking_status:'In transit'};
+const value=(order,key)=>columnValue(order,key,'sk');
+assert(helpers.matches(row,{external_order_id:'1371',workflow_status:'vyrobené',skus:'_%',created_at_from:'2026-10-05',created_at_to:'2026-10-05',label_created:'n'},value));
+assert(!helpers.matches(row,{external_order_id:'gid'},value));
+assert(!helpers.matches(row,{skus:'PaperXX'},value));
+assert(helpers.matches(row,{mobileSearch:'shopify gid-42 #1371'},value),'Joined mobile search semantics');
+assert(!helpers.matches(row,{label_created:'y'},value));
+assert(!helpers.matches({...row,created_at:null},{created_at_from:'2026-10-05'},value));
+assert(helpers.boardMatches(row,'transit','crafted'));assert(!helpers.boardMatches(row,'transit','new'));assert(!helpers.boardMatches(row,'shopify gid-42'));
+assert.equal(columnValue({...row,workflow_status:'custom',workflow_label:'Custom <stage>'},'workflow_status','sk'),'Custom <stage>');
+assert(helpers.compare({note:'z'},{note:'a'},'note','asc',value,'en')>0);
+assert(helpers.compare({note:''},{note:'a'},'note','desc',value,'en')>0);
+for(const filters of [{created_at_from:'2026-02-31'},{label_created:'maybe'},{note:23},{unknown:'text'}])assert.throws(()=>openExportOptions({format:'csv',filters}));
+assert.throws(()=>openExportOptions({format:'exe'}));assert.throws(()=>openExportOptions({format:'csv',boardSearch:23}));
+console.log('PASS shared table/board matching, Shopify display ID, localized/custom statuses, literal wildcards, dates, boolean filters, joined vs field search, stable null-last sort and validation.');
+
+assert(helpers.workMatches({...row,shipped:false},{attention:'unknownPayment'}));
+assert(!helpers.workMatches({...row,shipped:true},{attention:'overdue'}));
+assert(!helpers.workMatches({...row,source_payload:{financial_status:'paid'}},{attention:'payment'}));
+assert(helpers.workMatches({...row,source_payload:{financial_status:'pending'}},{attention:'payment'}));
+assert(helpers.workMatches(row,{vendor:'Shopify',stage:'crafted',label:'n'}));
+assert(!helpers.workMatches(row,{vendor:'Etsy'}));
+
+assert(helpers.workMatches({...row,ship_by_date:'2026-10-07T00:00:00Z'},{attention:'today'},[],'2026-10-07'));
+assert(!helpers.workMatches({...row,ship_by_date:'2026-10-07T00:00:00Z'},{attention:'overdue'},[],'2026-10-07'));
+assert(helpers.workMatches({...row,ship_by_date:'2026-10-06'},{attention:'overdue'},[],'2026-10-07'));
+assert.throws(()=>openExportOptions({format:'csv',boardToday:'2026-02-31'}));
+assert.equal(openExportOptions({format:'csv',boardToday:'2026-10-07'}).boardToday,'2026-10-07');

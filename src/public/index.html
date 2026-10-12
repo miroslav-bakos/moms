@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title data-no-translate>MOMS — Multichannel Order Management System</title>
+    <link rel="icon" type="image/svg+xml" href="/app-favicon?v=2">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=1">
+    <link rel="manifest" href="/manifest.json?v=2">
+    <script>
+      (() => {
+        const storedTheme = localStorage.getItem('local-orders-theme');
+        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = storedTheme === 'system' ? systemTheme : (storedTheme || systemTheme);
+        if (localStorage.getItem('local-orders-force-desktop') === 'true') {
+          const vp = document.querySelector('meta[name="viewport"]');
+          if (vp) vp.content = 'width=1280, viewport-fit=cover';
+        }
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Arimo:ital,wght@0,400;0,700;1,400&family=Great+Vibes&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/vendor/flatpickr.min.css?v=1">
+    <link rel="stylesheet" href="/styles.css?v=20261012-audit1">
+    <link rel="stylesheet" href="/liquid-glass.css?v=11">
+  </head>
+  <body>
+    <div id="offline-banner">Offline — showing cached data</div>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+
+
+          <button id="reloadApplication" class="brand-logo-reload" type="button" title="Reload application" aria-label="Reload application"><img src="/app-logo" alt="" class="brand-favicon"></button>
+          <span class="brand-name" data-no-translate><span class="brand-name-short">MOMS</span><span class="brand-name-full">MOMS — Multichannel Order Management System</span></span>
+        </div>
+
+          <div class="sidebar-toolbar"><button id="sidebarToggle" type="button" class="secondary" aria-controls="desktopSidebar" aria-expanded="true" title="Hide sidebar" aria-label="Hide sidebar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16M6 9v6"/></svg></button></div>
+        <nav id="desktopSidebar" class="top-nav" aria-label="Views">
+
+          <button class="tab nav-link" type="button" data-view="dashboard"><svg class="desktop-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m5 10V5m5 14v-7m5 7V3"/></svg><span class="desktop-nav-label">Dashboard</span></button>
+          <button class="tab nav-link active" type="button" data-view="board"><svg class="desktop-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 10h16M10 10v9m5-9v9"/></svg><span class="desktop-nav-label">Orders</span></button>
+          <button class="tab nav-link" type="button" data-view="marketing"><svg class="desktop-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10m8 10V4m8 16v-7"/></svg><span class="desktop-nav-label">Sales</span></button>
+          <button class="tab nav-link" type="button" data-view="open" hidden>Open Orders</button>
+          <button class="tab nav-link" type="button" data-view="archive" hidden>Archived Orders</button>
+          <button class="tab nav-link" type="button" data-view="scan"><svg class="desktop-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M7 7v10m3-10v10m4-10v10m3-10v10"/></svg><span class="desktop-nav-label">Scan</span></button><button class="tab nav-link" type="button" data-view="batch"><svg class="desktop-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg><span class="desktop-nav-label">Batch</span></button><button class="tab nav-link" type="button" data-view="inventory"><svg class="desktop-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9-4 9 4v13H3zM3 7h18M8 12h8v8"/></svg><span class="desktop-nav-label">Inventory</span></button>
+          <button class="tab nav-link" type="button" data-view="settings"><svg class="desktop-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6"/></svg><span class="desktop-nav-label">Configuration</span></button>
+        </nav>
+
+        <div class="actions">
+          <select id="languageSelect" class="language-select" aria-label="Language selection" title="Language"><option value="en">🇬🇧 EN</option><option value="sk">🇸🇰 SK</option></select>
+          <button id="hamburgerBtn" class="secondary hamburger-btn" type="button" aria-label="Open menu" aria-expanded="false">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+          <button id="desktopToggle" class="secondary desktop-toggle-btn" type="button" aria-label="Switch to desktop view" title="Switch to desktop view">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>
+            </svg>
+          </button>
+          <button id="keyboardShortcutsButton" class="secondary" type="button" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">⌘</button>
+          <button id="themeToggle" class="secondary" type="button" aria-label="Switch theme" title="Switch theme">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 14c.2-1 .7-1.7 1.5-2.5A5.5 5.5 0 0 0 18 7.8 6 6 0 1 0 6 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"></path>
+              <path d="M9 18h6"></path>
+              <path d="M10 22h4"></path>
+              <path d="M10 18a2 2 0 1 0 4 0"></path>
+            </svg>
+          </button>
+          <button id="pollNow" type="button"><span class="poll-label-full">Poll All</span><span class="poll-label-short">Sync</span></button>
+        </div>
+      </header>
+
+      <main>
+        <section id="dashboardView" class="view">
+          <div class="section-head">
+            <h2>Dashboard</h2>
+            <button id="refreshDashboard" class="secondary icon-btn" type="button" title="Refresh">↻</button>
+          </div>
+          <div id="dashboardContent"></div>
+        </section>
+
+        <section id="openView" class="view active-view">
+          <div class="orders-view-switch" role="group" aria-label="Order view"><button type="button" class="secondary" data-orders-view="board">Cards</button><button type="button" class="secondary" data-orders-view="open">Table</button><button type="button" class="secondary" data-orders-view="archive">Archive</button></div>
+          <div class="section-head">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <h2>Open Orders</h2>
+              <button id="addOrder" type="button">Add Order</button>
+              <button id="refreshOpen" class="secondary icon-btn" type="button" title="Refresh">↻</button>
+            </div>
+          </div>
+          <div id="openSelectionBar" class="selection-bar" hidden>
+            <span id="openSelectionCount" class="muted"></span>
+            <div class="actions">
+              <button id="printGls" type="button">Generate GLS Courier label</button>
+              <button id="printPostaParcel" class="secondary" type="button">Generate Slovenská pošta parcel label</button>
+              <span class="actions-divider"></span>
+              <button id="markShipped" class="secondary" type="button">Mark as Shipped</button>
+              <span class="actions-divider"></span>
+              <button id="changeSelectedStatus" class="secondary" type="button">Change status</button>
+              <button id="createBatch" type="button">Create Batch</button>
+              <select id="addToBatchSelect" aria-label="Add selected orders to a batch"><option value="">Add to current batch…</option></select>
+              <span class="actions-divider"></span>
+              <button id="openEditSelected" class="secondary" type="button">Edit</button>
+              <button id="deleteSelected" class="secondary danger-button" type="button">Delete</button>
+              <button type="button" class="secondary" data-print-orders="open" data-print-view="cards">Print cards / PDF</button><button type="button" class="secondary" data-print-orders="open" data-print-view="table">Print table / PDF</button><button type="button" class="secondary" data-export-orders="open" data-export-format="csv">Export CSV</button><button type="button" class="secondary" data-export-orders="open" data-export-format="xlsx">Export Excel</button>
+              <button id="clearSelection" class="secondary" type="button">Clear</button>
+            </div>
+          </div>
+          <details class="orders-tools"><summary>Order tools</summary><div class="orders-tools-menu"><button type="button" class="secondary" data-export-open-filtered="open" data-export-format="csv">Export filtered CSV</button><button type="button" class="secondary" data-export-open-filtered="open" data-export-format="xlsx">Export filtered Excel</button></div></details><div id="openTable"></div>
+          <div id="lastApiUpdate" class="last-api-update muted"></div>
+        </section>
+
+        <section id="boardView" class="view">
+          <div class="orders-view-switch" role="group" aria-label="Order view"><button type="button" class="secondary" data-orders-view="board">Cards</button><button type="button" class="secondary" data-orders-view="open">Table</button><button type="button" class="secondary" data-orders-view="archive">Archive</button></div>
+          <div class="board-controls">
+          <div class="section-head"><h2>Orders</h2><button id="refreshBoard" class="secondary icon-btn" type="button" title="Refresh board">↻</button><button id="boardSearchToggle" class="secondary icon-btn" type="button" title="Search" aria-label="Search" aria-expanded="false" aria-controls="boardSearchPanel"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg></button><button id="boardFiltersToggle" class="secondary icon-btn" type="button" title="Filters" aria-label="Filters" aria-expanded="false" aria-controls="boardManagementPanel"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button></div>
+
+
+          </div>
+          <span id="boardMessage" class="board-status" role="status" aria-live="polite"></span>
+          <section id="boardSearchPanel" hidden><div class="board-toolbar"><input id="boardSearch" type="search" placeholder="Search order, customer or product" aria-label="Search order board"><button id="boardScanSearch" type="button" class="secondary icon-btn" aria-label="Scan shipping label" title="Scan shipping label"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M7 7v10m3-10v10m4-10v10m3-10v10"/></svg></button></div></section><section id="boardManagementPanel" hidden><div class="board-management-tools"><details class="orders-tools"><summary>Order tools</summary><div class="orders-tools-menu"><button type="button" class="secondary" data-export-open-filtered="board" data-export-format="csv">Export filtered CSV</button><button type="button" class="secondary" data-export-open-filtered="board" data-export-format="xlsx">Export filtered Excel</button></div></details></div><h3>How to manage orders</h3><p class="muted">Move orders between stages by dragging a card or choosing its status. Board status does not archive orders. Use the existing archive action when you are ready.</p></section>
+          <div id="boardSelectionBar" class="selection-bar" hidden><span id="boardSelectionCount" class="muted"></span><div class="actions"><button type="button" class="secondary" data-board-bulk="printGls">Generate GLS Courier label</button><button type="button" class="secondary" data-board-bulk="printPostaParcel">Generate Slovenská pošta parcel label</button><button type="button" class="secondary" data-board-bulk="markShipped">Mark as Shipped (archive)</button><button type="button" class="secondary" data-board-bulk="changeSelectedStatus">Change status</button><button type="button" class="secondary" data-board-bulk="createBatch">Create Batch</button><button type="button" class="secondary" data-board-bulk="openEditSelected">Edit</button><button type="button" class="secondary" data-board-bulk="deleteSelected">Delete</button><button id="boardUploadSelected" type="button" class="secondary">Upload label</button><select id="boardAddToBatchSelect" aria-label="Add selected orders to a batch"><option value="">Add to current batch…</option></select><button type="button" class="secondary" data-print-orders="open" data-print-view="cards">Print cards / PDF</button><button type="button" class="secondary" data-print-orders="open" data-print-view="table">Print table / PDF</button><button type="button" class="secondary" data-export-orders="open" data-export-format="csv">Export CSV</button><button type="button" class="secondary" data-export-orders="open" data-export-format="xlsx">Export Excel</button><button id="boardClearSelection" type="button" class="secondary">Clear</button></div></div>
+          <div id="boardTabs" class="board-tabs" role="tablist" aria-label="Order stages"></div>
+          <div id="orderBoard" class="order-board"></div>
+        </section>
+
+        <section id="scanView" class="view"><h2>Scan</h2>
+          <div class="actions"><button id="scanAdd" type="button">Add shipment</button><button id="scanApply" type="button" disabled>Bulk changes</button><button id="scanClear" type="button" class="secondary">Clear scan list</button></div>
+          <div id="scanLayout" class="orders-view-switch" role="group" aria-label="Order view"><button type="button" class="secondary" data-scan-layout="cards" aria-pressed="true">Mini cards</button><button type="button" class="secondary" data-scan-layout="list" aria-pressed="false">List</button></div>
+          <p id="scanMessage" role="status"></p><div id="scanList" class="scan-parcels scan-cards"></div>
+          <dialog id="scanAddDialog"><header class="order-details-header"><h2>Add shipment</h2><div class="actions"><button id="scanTorch" type="button" class="secondary icon-btn" aria-label="Flashlight" title="Flashlight" aria-pressed="false" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 3h6v4l3 4v3h-2v7H8v-7H6v-3l3-4zM9 7h6M6 11h12M8 14h8"/></svg></button><button id="scanClose" type="button" class="secondary" aria-label="Close">×</button></div></header>
+            <div id="scanCameraFrame" class="scan-camera-frame" hidden><video id="scanVideo" autoplay muted playsinline hidden></video><canvas id="scanPreview" aria-hidden="true"></canvas><span class="scan-camera-line" aria-hidden="true"></span></div>
+            <form id="scanForm" class="actions"><label>Tracking or order number<input id="scanCode" maxlength="256" required autocomplete="off"></label><button type="submit">Add to scan list</button></form><p id="scanAddMessage" role="status"></p><a id="scanSecureLink" hidden>Open secure Scan</a>
+          </dialog>
+        </section>
+        <section id="inventoryView" class="view">
+          <div class="section-head"><h2>Inventory and production</h2><label class="inventory-image-toggle"><input id="inventoryShowImages" type="checkbox">Show images</label><button id="refreshInventory" type="button" class="secondary">Refresh</button></div>
+          <details class="inventory-help"><summary>Inventory guide</summary>          <p class="muted">Define materials, product recipes and SKU compositions. Completing an order deducts stock once; reopening production restores the original consumption. Material stock can become negative and shortages remain visible.</p>
+          <p class="muted">Record production adds finished products and deducts recipe materials. Adjust finished stock records products already made without deducting materials. Orders use finished stock first and materials only for the remainder, even when you skip stages.</p>
+          <p class="muted">Missing SKU compositions do not block production. Only configured materials are deducted. Products with empty recipes consume no tracked materials.</p>
+</details>
+          <p id="inventoryMessage" role="status"></p>
+          <nav class="inventory-tabs" aria-label="Inventory sections"><button type="button" class="secondary active" data-inventory-tab="materials">Materials</button><button type="button" class="secondary" data-inventory-tab="products">Products and recipes</button><button type="button" class="secondary" data-inventory-tab="skus">SKU compositions</button><button type="button" class="secondary" data-inventory-tab="shopping">Shopping list</button><button type="button" class="secondary" data-inventory-tab="movements">Stock movements</button></nav>
+          <div class="inventory-filter-bar"><label class="inventory-search-label"><span>Search inventory</span><input id="inventorySearch" type="search" maxlength="200" placeholder="Name, manufacturer, SKU…"></label><label id="inventoryShortageFilter" class="inventory-image-toggle"><input id="inventoryOnlyShortages" type="checkbox">Only shortages</label><button id="inventoryClearFilters" type="button" class="secondary">Clear filters</button><span id="inventoryFilterCount" role="status" aria-live="polite"></span></div>
+          <div data-inventory-panel="shopping" hidden><div class="section-head"><h3>Shopping list</h3><div class="actions"><button type="button" data-shopping-shortages>Add all shortages</button><button type="button" class="secondary" data-shopping-export="csv">Export CSV</button><button type="button" class="secondary" data-shopping-export="xlsx">Export Excel</button><button type="button" class="secondary" data-shopping-export="html">Print / PDF</button></div></div><p class="muted">Export and print include the entire shopping list.</p><p class="muted">Based on all open orders. Existing shopping quantities stay unchanged.</p><p class="muted">Receiving a purchase adds the listed quantity to stock and removes it from this list.</p><div id="inventoryShopping"></div></div>
+          <div data-inventory-panel="materials"><div class="section-head"><h3>Materials</h3><div class="actions"><button type="button" class="secondary" data-shopping-shortages>Add all shortages</button><button type="button" data-inventory-add="materials">Add material</button></div></div><div id="inventoryMaterials"></div></div>
+          <div data-inventory-panel="products" hidden><div class="section-head"><h3>Products and recipes</h3><button type="button" data-inventory-add="products">Add product</button></div><div id="inventoryProducts"></div></div>
+          <div data-inventory-panel="skus" hidden><div class="section-head"><h3>SKU compositions</h3><button type="button" data-inventory-add="skus">Add SKU composition</button></div><div id="inventorySkus"></div></div>
+          <div data-inventory-panel="movements" hidden><h3>Stock movements</h3><p class="muted">Latest 100 movements</p><div id="inventoryMovements"></div></div>
+        </section>
+        <section id="batchView" class="view">
+          <div class="section-head"><div><h2>Batch</h2><p id="batchSummary" class="muted">No active batch selected.</p></div><div class="actions"><select id="batchPicker" aria-label="Choose batch"><option value="">No batch selected</option></select><button id="deleteBatch" class="secondary danger-button" type="button">Delete Batch</button></div></div>
+          <div id="batchContent"></div>
+        </section>
+
+        <section id="archiveView" class="view">
+          <div class="orders-view-switch" role="group" aria-label="Order view"><button type="button" class="secondary" data-orders-view="board">Cards</button><button type="button" class="secondary" data-orders-view="open">Table</button><button type="button" class="secondary" data-orders-view="archive">Archive</button></div>
+          <div class="section-head">
+            <h2>Archived Orders</h2><div class="orders-view-switch" role="group" aria-label="Archive layout"><button type="button" class="secondary" data-archive-layout="cards">Cards</button><button type="button" class="secondary" data-archive-layout="table">Table</button></div>
+            <div class="actions">
+              <button id="refreshArchive" class="secondary icon-btn" type="button" title="Refresh">↻</button>
+              <details class="orders-tools"><summary>Order tools</summary><div class="orders-tools-menu">              <button id="refreshTracking" class="secondary" type="button">Refresh Tracking</button>
+              <button type="button" class="secondary" data-export-archive-filtered data-export-format="csv">Export filtered CSV</button><button type="button" class="secondary" data-export-archive-filtered data-export-format="xlsx">Export filtered Excel</button>
+              <button id="importCsv" class="secondary" type="button">Import CSV / Excel</button></div></details>
+            </div>
+          </div>
+          <input id="importCsvFile" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+          <div id="archiveSelectionBar" class="selection-bar" hidden>
+            <span id="archiveSelectionCount" class="muted"></span>
+            <div class="actions">
+              <button id="archivePrintGls" type="button">Generate GLS Courier label</button>
+              <button id="archivePrintPostaParcel" class="secondary" type="button">Generate Slovenská pošta parcel label</button>
+              <span class="actions-divider"></span>
+              <button id="archiveEditSelected" class="secondary" type="button">Edit</button>
+              <button id="archiveDeleteSelected" class="secondary danger-button" type="button">Delete</button>
+              <button type="button" class="secondary" data-print-orders="archive" data-print-view="cards">Print cards / PDF</button><button type="button" class="secondary" data-print-orders="archive" data-print-view="table">Print table / PDF</button><button type="button" class="secondary" data-export-orders="archive" data-export-format="csv">Export CSV</button><button type="button" class="secondary" data-export-orders="archive" data-export-format="xlsx">Export Excel</button>
+              <button id="archiveClearSelection" class="secondary" type="button">Clear</button>
+            </div>
+          </div>
+          <div id="archiveTable"></div>
+        </section>
+
+        <section id="marketingView" class="view">
+          <div class="section-head">
+            <h2>Sales</h2>
+            <button id="refreshMarketing" class="secondary icon-btn" type="button" title="Refresh">↻</button>
+          </div>
+          <div id="marketingPeriodBar" class="marketing-period-bar" role="group" aria-label="Sales period">
+            <span class="muted">Period:</span>
+            <button class="marketing-period-btn" type="button" data-period="week" aria-pressed="false">Last 7 days</button>
+            <button class="marketing-period-btn" type="button" data-period="month" aria-pressed="false">This month</button>
+            <button class="marketing-period-btn" type="button" data-period="previous-month" aria-pressed="false">Last month</button>
+            <button class="marketing-period-btn active" type="button" data-days="30" aria-pressed="true">30 days</button>
+            <button class="marketing-period-btn" type="button" aria-pressed="false" data-days="90">90 days</button>
+            <button class="marketing-period-btn" type="button" aria-pressed="false" data-days="365">This year</button>
+          </div>
+          <div id="marketingContent"></div>
+        </section>
+
+        <section id="settingsView" class="view">
+          <nav class="settings-subnav" aria-label="Settings sections">
+            <button class="tab settings-tab" type="button" data-settings-tab="workflow">Order Statuses</button>
+            <button class="tab settings-tab" type="button" data-settings-tab="appearance">Appearance</button>
+            <button class="tab settings-tab active" type="button" data-settings-tab="products">Product Mapping</button>
+            <button class="tab settings-tab" type="button" data-settings-tab="auth">Authorizations</button>
+            <button class="tab settings-tab" type="button" data-settings-tab="backup">Backup</button>
+            <button class="tab settings-tab" type="button" data-settings-tab="logs">Logs</button>
+          </nav>
+
+          <div id="settingsWorkflow" class="settings-subview">
+            <div class="section-head"><h2>Order Statuses</h2></div>
+            <p class="muted">These statuses appear in Open Orders and the Order Board. Removing a status moves its orders to the default status. The default status can be renamed.</p>
+            <div id="workflowSettingsList"></div>
+            <form id="addWorkflowStatus" class="workflow-settings-row"><input id="newWorkflowLabel" required maxlength="60" placeholder="New status name" aria-label="New status name"><button type="submit">Add status</button></form>
+            <p id="workflowSettingsMessage" role="status" aria-live="polite"></p>
+          </div>
+
+          <div id="settingsAppearance" class="settings-subview">
+            <div class="section-head">
+              <div><p class="section-kicker">Configuration</p><h2>Appearance</h2></div>
+            </div>
+            <section class="appearance-card"><form id="brandingForm">
+              <h3>Application name and logo</h3>
+              <label>Application name<input id="brandingName" type="text" maxlength="100" required></label>
+              <label>Logo (PNG, JPEG or WebP, up to 1 MB)<input id="brandingLogo" type="file" accept="image/png,image/jpeg,image/webp"></label>
+              <img id="brandingPreview" src="/app-logo" width="64" height="64" alt="Logo preview">
+              <p class="muted">Changes apply to all devices. Installed web app names and icons may update later.</p>
+              <button type="submit">Save</button><button id="resetBranding" type="button" class="secondary">Restore MOMS name and logo</button>
+              <p id="brandingMessage" aria-live="polite"></p>
+            </form></section>
+            <section class="appearance-card marketplace-appearance-card" aria-labelledby="marketplaceColorsTitle"><h3 id="marketplaceColorsTitle">Marketplace order backgrounds</h3><p>Choose a color and intensity for each sales channel. Colors apply to order cards and tables on all devices. Reset restores the original appearance.</p><p id="marketplaceAppearanceMessage" role="status"></p><div id="marketplaceAppearance"></div></section>
+            <section class="appearance-card" aria-labelledby="themeModeTitle">
+              <div><h3 id="themeModeTitle">Color mode</h3><p class="muted">Choose a fixed theme or follow your device setting.</p></div>
+              <div class="theme-mode-options" role="group" aria-label="Color mode">
+                <button type="button" class="theme-mode-option" data-theme-mode="light">Light</button>
+                <button type="button" class="theme-mode-option" data-theme-mode="dark">Dark</button>
+                <button type="button" class="theme-mode-option" data-theme-mode="system">System</button>
+              </div>
+            </section>
+            <section class="appearance-card" aria-labelledby="accentTitle">
+              <div><h3 id="accentTitle">Accent color</h3><p class="muted">Personalize buttons, links, and highlights.</p></div>
+              <div class="accent-options" role="group" aria-label="Accent color presets">
+                <button type="button" class="accent-swatch" data-accent="sage" aria-label="Sage green" title="Sage green"><span></span></button>
+                <button type="button" class="accent-swatch" data-accent="terracotta" aria-label="Terracotta" title="Terracotta"><span></span></button>
+                <button type="button" class="accent-swatch" data-accent="ocean" aria-label="Ocean blue" title="Ocean blue"><span></span></button>
+                <button type="button" class="accent-swatch" data-accent="plum" aria-label="Plum" title="Plum"><span></span></button>
+                <button type="button" class="accent-swatch" data-accent="gold" aria-label="Warm gold" title="Warm gold"><span></span></button>
+                <button type="button" class="accent-swatch" data-accent="logo" aria-label="MOMS logo gold" title="MOMS logo gold"><span></span></button>
+                <label class="accent-custom"><span>Custom</span><input id="customAccentColor" type="color" aria-label="Choose custom accent color"></label>
+              </div>
+            </section>
+          </div>
+
+          <div id="settingsProducts" class="settings-subview active-subview">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">Configuration</p>
+                <h2>Product Mapping</h2>
+              </div>
+              <div class="actions">
+                <button id="addProduct" type="button">Add Mapping</button>
+                <button id="refreshProductMappings" class="secondary" type="button">Apply to Orders</button>
+              </div>
+            </div>
+            <div class="muted product-note">Incoming marketplace SKUs are substituted from this table.</div>
+            <div id="productTable"></div>
+          </div>
+
+          <div id="settingsAuth" class="settings-subview"><p><a href="/marketplace-setup.html">Marketplace setup guide</a> · <a href="/support.html">Contact support by email</a></p><form action="/login/logout" method="post"><button type="submit" class="secondary">Sign out</button></form>
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">Configuration</p>
+                <h2>Application settings</h2>
+              </div>
+              <button id="refreshAuth" class="secondary" type="button">Refresh</button>
+            </div>
+            <p class="muted">Manage application settings below. Synchronization switches apply immediately; other saved changes apply after restarting the application. Empty secret fields keep the saved value; use Clear to remove a secret.</p>
+            <button id="restartLocalSetup" type="button" class="secondary">Local setup guide</button>
+            <button id="connectPhone" type="button" class="secondary">Connect phone</button>
+            <button id="enablePush" type="button" class="secondary">Enable notifications on this device</button>
+            <button id="disablePush" type="button" class="secondary">Disable notifications on this device</button>
+            <p id="pushMessage" role="status"></p>
+            <div id="applicationSettings" aria-live="polite"></div>
+            <h3>Marketplace connections</h3>
+            <div id="authCards" class="channels"></div>
+          </div>
+
+          <div id="settingsBackup" class="settings-subview">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">Configuration</p>
+                <h2>Backup</h2>
+              </div>
+            </div>
+            <div class="backup-section">
+              <h3>Automated Backups</h3>
+              <p class="muted">Backups run daily at midnight and are kept for 30 days.</p>
+              <div class="actions" style="margin-bottom:0.75rem">
+                <button id="backupNow" type="button">Backup Now</button>
+              </div>
+              <div id="backupList"></div>
+            </div>
+
+            <div class="backup-section">
+              <h3>Download</h3><p>For automatic copies, set Backup copy directory in application settings to an existing mounted external drive or network folder, then restart. The folder must be available to MOMS. Local backup remains available if copying fails.</p>
+              <p class="muted">Save a complete compressed backup to your computer.</p>
+              <p class="muted">Includes database, labels and credentials. Keep downloaded backups private.</p>
+              <button id="backupDownload" type="button">Download Backup</button>
+            </div>
+            <div class="backup-section">
+              <h3>Verify</h3>
+              <p class="muted">Verify checksums and test restoration in a separate temporary database. Includes labels and encrypted settings.</p>
+              <div class="actions">
+                <button id="backupVerifyBtn" class="secondary" type="button">Choose File &amp; Verify…</button>
+                <span id="backupVerifyStatus" class="muted"></span>
+              </div>
+              <input id="backupVerifyFile" type="file" accept=".gz,.sql.gz,.moms.gz" hidden>
+              <div id="backupVerifyResult" hidden></div>
+            </div>
+
+            <div class="backup-section">
+              <h3>Restore</h3>
+              <p class="muted danger-text">Warning: this will overwrite all current data. Make sure you have a recent backup before proceeding.</p>
+              <div class="actions">
+                <button id="backupRestoreBtn" class="secondary danger-button" type="button">Choose File &amp; Restore…</button>
+                <span id="backupRestoreStatus" class="muted"></span>
+              </div>
+              <input id="backupRestoreFile" type="file" accept=".gz,.sql.gz,.moms.gz" hidden>
+            </div>
+          </div>
+
+          <div id="settingsLogs" class="settings-subview"><section id="vatPreferences"></section><h3>Accounting export</h3><p>Order dates use UTC. Missing costs stay blank. This is a handoff report; tax and refunds require accountant review.</p><form id="accountingExportForm" class="accounting-export-form"><label>From<input name="from" type="date" required></label><label>To<input name="to" type="date" required></label><button type="submit">Download accounting CSV</button><span id="accountingExportStatus" role="status"></span></form><button type="button" id="downloadServiceDiagnostics">Download service diagnostics</button><p class="muted">The support report contains connection and backup status only, without credentials or customer data.</p>
+            <div class="section-head">
+              <h2>Audit Log</h2>
+              <div class="muted" id="auditLogCount"></div>
+            </div>
+            <div id="auditLog"></div>
+
+            <div class="logs-grid">
+              <section>
+                <div class="section-head">
+                  <h2>Access Logs</h2>
+                  <div class="muted" id="accessLogCount"></div>
+                </div>
+                <div id="accessLogs"></div>
+              </section>
+
+              <section>
+                <div class="section-head events-head">
+                  <h2>App Events</h2>
+                </div>
+                <div id="events" class="events"></div>
+              </section>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <nav class="mobile-bottom-nav" aria-label="Main navigation">
+      <button class="tab nav-link mobile-primary-link" type="button" data-view="dashboard" aria-label="Dashboard">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m5 10V5m5 14v-7m5 7V3"/></svg><span>Dashboard</span>
+      </button>
+      <button class="tab nav-link mobile-primary-link active" type="button" data-view="board" aria-label="Orders">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 10h16M10 10v9m5-9v9"/></svg><span>Orders</span>
+      </button>
+      <button class="tab nav-link mobile-primary-link" type="button" data-view="open" aria-label="Open orders" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v3H4zM4 10h16v9H4z"/><path d="M8 13h8M8 16h5"/></svg><span>Orders</span>
+      </button>
+      <button class="tab nav-link mobile-primary-link" type="button" data-view="inventory" aria-label="Inventory"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9-4 9 4v13H3zM3 7h18M8 12h8v8"/></svg><span>Inventory</span></button>
+      <button class="tab nav-link mobile-primary-link" type="button" data-view="scan" aria-label="Scan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M7 7v10m3-10v10m4-10v10m3-10v10"/></svg><span>Scan</span></button>
+      <button id="mobileMoreButton" class="mobile-more-button" type="button" aria-expanded="false" aria-controls="mobileMoreMenu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg><span>More</span>
+      </button>
+    </nav>
+
+    <dialog id="orderDetailsDialog" aria-labelledby="orderDetailsTitle"><header class="order-details-header"><div><h2 id="orderDetailsTitle">Order details</h2><p id="orderDetailsNumber" data-no-translate></p></div><button id="closeOrderDetails" type="button" class="secondary mobile-menu-close" aria-label="Close">×</button></header><div id="orderDetailsContent"></div><p id="orderDetailsMessage" role="status"></p><section class="order-details-actions" aria-labelledby="orderDetailsActionsTitle"><h3 id="orderDetailsActionsTitle">Order actions</h3><div id="orderDetailsActions"></div></section></dialog>
+    <dialog id="keyboardShortcutsDialog" aria-labelledby="keyboardShortcutsTitle"><h2 id="keyboardShortcutsTitle">Keyboard shortcuts</h2><p class="muted">Use Command on Mac or Control on Windows and Linux.</p><dl class="keyboard-shortcuts"><dt><kbd>⌘ / Ctrl + K</kbd> · <kbd>/</kbd></dt><dd>Search current section</dd><dt><kbd>⌘ / Ctrl + Alt + 1–4</kbd></dt><dd>Dashboard, Orders, Inventory, Configuration</dd><dt><kbd>Shift + F10</kbd></dt><dd>Actions for focused order</dd><dt><kbd>Esc</kbd></dt><dd>Close menu or dialog</dd></dl><button id="closeKeyboardShortcuts" type="button" class="secondary">Close</button></dialog>
+    <dialog id="mobileOrderActions" class="mobile-action-sheet" aria-labelledby="mobileOrderActionsTitle"><div class="mobile-more-handle"></div><header><div><h2 id="mobileOrderActionsTitle">Order actions</h2><p id="mobileOrderActionsSubtitle" data-no-translate></p></div><button id="closeMobileOrderActions" type="button" class="secondary mobile-menu-close" aria-label="Close menu">×</button></header><div id="mobileOrderActionsContent"></div></dialog>
+    <div id="mobileMoreBackdrop" class="mobile-more-backdrop" hidden></div>
+    <section id="mobileMoreMenu" class="mobile-more-menu" role="dialog" aria-modal="true" aria-labelledby="mobileMoreTitle" hidden>
+      <div class="mobile-more-handle"></div>
+      <header><div><p class="section-kicker" id="mobileBrandName" data-no-translate>MOMS</p><h2 id="mobileMoreTitle">More sections</h2></div><button id="closeMobileMore" class="secondary mobile-menu-close" type="button" aria-label="Close menu">×</button></header>
+      <div class="mobile-more-grid">
+        <button class="tab nav-link mobile-menu-link" type="button" data-view="archive" hidden><span class="mobile-menu-icon">▤</span><span>Archive</span></button>
+        <button class="tab nav-link mobile-menu-link" type="button" data-view="inventory"><span class="mobile-menu-icon">▤</span><span>Inventory</span></button>
+        <button class="tab nav-link mobile-menu-link" type="button" data-view="scan"><span class="mobile-menu-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M7 7v10m3-10v10m4-10v10m3-10v10"/></svg></span><span>Scan</span></button><button class="tab nav-link mobile-menu-link" type="button" data-view="batch"><span class="mobile-menu-icon">▦</span><span>Batch</span></button>
+        <button class="tab nav-link mobile-menu-link" type="button" data-view="marketing"><span class="mobile-menu-icon">◒</span><span>Sales</span></button>
+        <button class="tab nav-link mobile-menu-link" type="button" data-view="settings"><span class="mobile-menu-icon">⚙</span><span>Configuration</span></button>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <span id="appVersion" class="muted"></span>
+    </footer>
+
+    <dialog id="inventoryReceiptDialog" class="inventory-dialog"><form id="inventoryReceiptForm"><h2>Receive into stock</h2><p id="inventoryReceiptMaterial" data-no-translate></p><p class="muted">Enter the quantity delivered. The remainder stays on the shopping list.</p><label>Received quantity<input id="inventoryReceiptQuantity" type="number" min="0.000001" step="0.000001" required></label><p id="inventoryReceiptMessage" role="status"></p><button id="inventoryReceiptSave" type="submit">Receive into stock</button><button id="inventoryReceiptCancel" type="button" class="secondary">Cancel</button></form></dialog>
+    <dialog id="finishedStockDialog" class="inventory-dialog"><form id="finishedStockForm">
+      <h2 id="finishedStockTitle"></h2><p id="finishedStockProduct" data-no-translate></p>
+      <p><span>Finished in stock</span>: <strong id="finishedStockCurrent" data-no-translate></strong></p>
+      <p id="finishedStockHelp"></p><label><span id="finishedStockQuantityLabel"></span><input id="finishedStockQuantity" type="number" step="0.000001" min="0" max="1000000000" required></label>
+      <p id="finishedStockMessage" role="status"></p><div class="inventory-form-actions"><button type="submit">Save</button><button id="cancelFinishedStock" type="button" class="secondary">Cancel</button></div>
+    </form></dialog>
+    <dialog id="inventoryDialog" class="inventory-dialog"><form id="inventoryForm"><h2 id="inventoryDialogTitle"></h2><div id="inventoryEditor"></div><p id="inventoryFormMessage" role="status"></p><div class="inventory-form-actions"><button id="saveInventoryItem" type="submit">Save</button><button id="cancelInventoryItem" type="button" class="secondary">Cancel</button></div></form></dialog>
+    <dialog id="dashboardPinsDialog" class="dashboard-pins-dialog">
+      <h2>Configure pinned SKUs</h2>
+      <p>Add a display name and one or more SKUs. Use * to match part of an SKU, for example *munari*. Counts include quantities in orders that still need crafting.</p>
+      <div id="dashboardPinRows"></div>
+      <button id="addDashboardPin" type="button" class="secondary">Pin SKU</button>
+      <p id="dashboardPinMessage" aria-live="polite"></p>
+      <button id="saveDashboardPins" type="button">Save</button>
+      <button id="closeDashboardPins" type="button" class="secondary">Cancel</button>
+    </dialog>
+    <dialog id="mobileConnectDialog" class="mobile-connect-dialog">
+      <h2>Connect phone</h2>
+      <p>Connect your phone to the same Wi-Fi. The computer must stay on while you use the application.</p>
+      <img id="mobileConnectQr" width="256" height="256" alt="Application address QR code">
+      <div class="mobile-connect-address"><a id="mobileConnectAddress" data-no-translate target="_blank" rel="noopener"></a><button id="copyMobileAddress" type="button">Copy address</button></div>
+      <p id="mobilePairingHelp">Scan the QR code and sign in with your application username and password.</p>
+      <button id="revokeMobileDevices" class="secondary" type="button">Sign out all paired phones</button>
+      <p>On iPhone, use Share → Add to Home Screen. On Android, use the browser menu → Install app or Add to Home screen.</p>
+      <p id="mobileHttpsNotice" class="muted">This address uses HTTP. Opening the application works, but full web app installation requires trusted HTTPS.</p>
+      <label><input id="mobileConnectEveryLogin" type="checkbox"> Show on each desktop login</label>
+      <p id="mobileConnectMessage" aria-live="polite"></p>
+      <button id="closeMobileConnect" type="button">Close</button>
+    </dialog>
+    <dialog id="bulkStatusDialog">
+      <h2>Change status</h2>
+      <p id="bulkStatusCount"></p>
+      <p>Change the workflow status of all selected orders. This does not archive them.</p>
+      <label>Status<select id="bulkStatusSelect"></select></label>
+      <p id="bulkStatusMessage" role="status"></p>
+      <div class="actions"><button id="bulkStatusSave" type="button">Save</button><button id="bulkStatusCancel" class="secondary" type="button">Cancel</button></div>
+    </dialog>
+    <script src="/vendor/flatpickr.min.js?v=1"></script>
+    <script src="/i18n.js?v=20261012-audit1"></script>
+    <script src="/dashboard-pins.js?v=1"></script>
+    <script src="/vat.js?v=1"></script>
+    <script src="/order-costs.js?v=3"></script>
+    <script src="/inventory.js?v=15"></script>
+    <script src="/order-filters.js?v=3"></script>
+    <script src="/mobile-navigation.js?v=3"></script>
+    <script src="/order-workspace.js?v=7"></script>
+    <script src="/marketplace-appearance.js?v=1"></script>
+    <script src="/order-fulfillment.js?v=6"></script>
+    <script src="/local-setup.js?v=4"></script>
+    <script src="/service-diagnostics.js?v=2"></script>
+    <script src="/accounting-export.js?v=1"></script>
+    <script src="/marketplace-balances.js?v=4"></script>
+    <script src="/workflow-dispatch.js?v=2"></script>
+    <script src="/app.js?v=20261012-audit1"></script>
+    <script src="/vendor/zxing-browser-0.2.1.min.js"></script>
+    <script src="/parcel-code-reader.js?v=5"></script>
+    <script src="/scan.js?v=14"></script>
+    <script src="/order-import.js?v=1"></script>
+    <script src="/button-icons.js?v=3"></script>
+    <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js?v=4');</script>
+
+    <input id="labelUploadFile" type="file" accept=".pdf,.png,.jpg,.jpeg" hidden>
+
+  </body>
+</html>

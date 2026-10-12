@@ -1,0 +1,4 @@
+document.getElementById('accountingExportForm').onsubmit=async event=>{
+ event.preventDefault();const form=event.target,button=form.querySelector('button'),status=document.getElementById('accountingExportStatus');button.disabled=true;status.textContent='';
+ try{const values=new FormData(form),response=await fetch('/api/accounting-export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:values.get('from'),to:values.get('to'),language:window.i18n.language})});if(!response.ok){const data=await response.json();throw new Error(data.error||'Export failed.');}const url=URL.createObjectURL(await response.blob()),link=document.createElement('a');link.href=url;link.download='moms-accounting.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){status.textContent=window.i18n.t(error.message);}finally{button.disabled=false;}
+};

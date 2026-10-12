@@ -1,0 +1,14 @@
+'use strict';
+const fs=require('node:fs');
+const path=require('node:path');
+const {spawnSync}=require('node:child_process');
+const root=path.resolve(__dirname,'..');
+const result=spawnSync('git',['rev-parse','--git-path','hooks/pre-commit'],{cwd:root,encoding:'utf8'});
+if(result.status!==0)throw new Error('Run inside a Git checkout.');
+const hook=path.resolve(root,result.stdout.trim());
+const marker='# MOMS verification harness';
+if(fs.existsSync(hook)&&!fs.readFileSync(hook,'utf8').includes(marker))throw new Error('An existing pre-commit hook is installed. Integrate scripts/pre-commit.js into it instead of overwriting it.');
+fs.mkdirSync(path.dirname(hook),{recursive:true});
+fs.writeFileSync(hook,'#!/bin/sh\n'+marker+'\nexec node "$(git rev-parse --show-toplevel)/scripts/pre-commit.js"\n',{mode:0o755});
+fs.chmodSync(hook,0o755);
+console.log('Installed offline verification pre-commit gate; other Git hooks preserved.');

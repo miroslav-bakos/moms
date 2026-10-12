@@ -1,0 +1,30 @@
+.env
+node_modules/
+data/
+labels/
+npm-debug.log
+testing/playwright-report/
+testing/test-results/
+
+
+/settings/
+/dist/
+/runtime/
+
+# Beads / Dolt files (added by bd init)
+*.db
+https-public/
+
+.env.lan-*
+
+# Private runtime and recovery data
+backups/
+recovery-snapshots/
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.dump
+*.moms.gz
