@@ -8,12 +8,21 @@ MOMS is a free, self-hosted application for makers, artists, sole traders and sm
 
 ## Features
 
-- **Orders:** marketplace synchronization and manual entry, order details, SKU mappings, deadlines, filtering and archiving.
-- **Production:** configurable workflow stages, product recipes, material requirements and stock allocation by order. Completing production consumes stock once; reopening restores the recorded stock snapshot.
-- **Inventory:** materials, finished products, receipts and shortage planning.
-- **Costs:** recorded production, shipping, marketplace, payment and other costs; contribution/profit views by period, channel and product. Sellers can configure VAT registration and rates, including non-payer treatment.
-- **Dispatch:** carrier labels, tracking, shipment records and explicit marketplace shipment confirmation. Local archiving and remote confirmation are tracked separately.
-- **Operations:** accounting CSV handoff, encrypted secret settings, full backups and recovery, synchronization/backup diagnostics, English/Slovak interface and phone access over a private LAN.
+MOMS brings the everyday workflow from incoming order to production and dispatch into one local application:
+
+- **Multichannel orders:** synchronize orders from SAShE, Etsy, Amazon and Shopify, or create orders manually. Review customer delivery details, items, quantities, notes and deadlines; filter orders and work in board, table or archive views.
+- **Stock and inventory:** track materials and finished products, record stock receipts and movements, and see what is available, allocated to orders or missing. Plan purchases using material requirements and the shopping list.
+- **Product recipes:** define the materials and quantities needed to make each product, add labour and packaging costs, and map marketplace SKUs to products or product combinations. See how many finished pieces can be used and how many still need production.
+- **Production planning:** organize orders in configurable workflow stages and review requirements by order. Marking production complete consumes stock once; reopening restores the recorded stock snapshot.
+- **Shipping labels — Slovenská pošta:** create postal shipment labels through the integration API using your own credentials and sender details, with configurable parcel/service and customs information.
+- **Shipping labels — GLS Slovakia:** create labels through MyGLS using your own GLS account, client number, sender/pickup details and parcel settings. Carrier access and service availability depend on your account.
+- **Shipment records and tracking:** keep shipment tracking numbers and labels with the order and review supported carrier tracking statuses. Creating a carrier label and confirming dispatch to a marketplace are separate actions.
+- **Mark as Shipped:** supported Etsy, Amazon and Shopify orders ask for confirmation before sending saved tracking to the marketplace. “Mark as Shipped (archive)” archives only after successful marketplace confirmation; rejected or unclear results remain available for review. Manual orders archive directly; SAShE has no dispatch writeback. Individual and selected-order actions are supported, subject to each order's eligibility.
+- **Marketplace dispatch confirmation:** send full-order tracking to Etsy, confirm an eligible merchant-fulfilled Amazon shipment, or create a Shopify fulfillment. Check remote tracking after an uncertain result instead of automatically sending another shipment.
+- **Sales and recorded costs:** compare sales by period and channel; record production, shipping, marketplace, payment and other costs, and review contribution by channel, month and product. Configure VAT registration and rates, including non-payer treatment. Missing costs and mixed currencies are identified rather than treated as reliable profit.
+- **Accounting handoff:** export order revenue and recorded costs as CSV for your accountant. This is an operational export, not a tax ledger.
+- **Backups and diagnostics:** create and verify full backups, restore an installation, optionally copy backups to a mounted external destination, and review synchronization/backup health.
+- **Local use:** keep data in your own PostgreSQL database, with encrypted secret settings, English/Slovak interface and phone access over a private LAN. Public HTTPS callbacks are configured separately when an OAuth connection needs them.
 
 ## Supported APIs and actions
 
@@ -23,7 +32,7 @@ MOMS is a free, self-hosted application for makers, artists, sole traders and sm
 | **Etsy Open API v3** | Orders/receipts, items, delivery details and existing shipment tracking | Send full-order shipment tracking and buyer shipping notification | Own approved application and OAuth; `transactions_r` for orders, `transactions_w` and endpoint approval for shipment confirmation |
 | **Amazon Selling Partner API** | Orders and items, permitted delivery data, remote packages; Finances balances; review-request eligibility | Confirm a merchant-fulfilled shipment; request product review/seller feedback when Amazon permits it | Own SP-API application, seller authorization and relevant roles; address access is separately restricted; no FBA shipment automation |
 | **Shopify Admin API** | Orders and items, delivery/payment/fulfillment status, fulfillment orders; Shopify Payments balances when permitted | Create a full-order merchant-managed fulfillment with tracking and customer notification | Store token, own-store client credentials or OAuth; order/fulfillment scopes and additional balance access where applicable |
-| **MyGLS** | Label results and supported tracking information | Create shipping labels with configured sender/account details | MyGLS account and API credentials |
+| **GLS Slovakia / MyGLS** | Label results and supported tracking information | Create shipping labels with configured sender/account details | MyGLS account and API credentials |
 | **Slovenská pošta integration API** | Label results; supported postal tracking | Create postal shipment labels | Own API credentials, sender, service and customs configuration |
 
 Marketplace shipment writes require one complete eligible order with original item identifiers and matching quantities. Partial marketplace shipment writeback, marketplace refunds/cancellations and listing/catalog management are not supported here. After an unclear write result, reconciliation reads remote tracking instead of blindly sending again. Balance views use provider-reported funds, keep currencies separate and show unavailable data when access is missing; Etsy/SAShE balances are not supported.
