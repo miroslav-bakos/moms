@@ -51,11 +51,18 @@ def validate(archive, platform, arch, version, tracked, repo):
             source_path = member.name[len('moms-bundle/'):]
             record = records[source_path]
             assert member.size == record['bytes'], 'File size mismatch'
-            actual = digest(bundle.extractfile(member))
-            assert actual == record['sha256'], 'Bundle integrity mismatch'
+            stream = bundle.extractfile(member)
             if source_path in tracked:
-                with (repo / source_path).open('rb') as source:
-                    assert actual == digest(source), 'Bundled source differs from release source'
+                data = stream.read()
+                actual = hashlib.sha256(data).hexdigest()
+                expected = (repo / source_path).read_bytes()
+                if data != expected:
+                    # Windows Git checkouts may use CRLF. Never normalize binaries.
+                    assert b'\0' not in data and b'\0' not in expected, 'Bundled source differs from release source'
+                    assert data.decode('utf-8').replace('\r\n', '\n') == expected.decode('utf-8').replace('\r\n', '\n'), 'Bundled source differs from release source'
+            else:
+                actual = digest(stream)
+            assert actual == record['sha256'], 'Bundle integrity mismatch'
 
 def main():
     root, tag = Path(sys.argv[1]), sys.argv[2]

@@ -17,13 +17,14 @@ class ReleaseValidation(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.archive = self.root / 'moms-linux-x64.tar.gz'
         (self.root / 'src').mkdir()
-        (self.root / 'src/server.js').write_bytes(b'fixture')
+        (self.root / 'src/server.js').write_bytes(b'fixture\n')
 
     def tearDown(self):
         self.temp.cleanup()
 
-    def fixture(self, extra=None, corrupt=False, executable=True):
+    def fixture(self, extra=None, corrupt=False, executable=True, source=b'fixture\n'):
         files = {p: b'fixture' for p in ['LICENSE', 'NOTICE', 'runtime/NODE-LICENSE', 'runtime/POSTGRESQL-LICENSE', 'scripts/desktop.js', 'scripts/install-desktop.js', 'src/server.js', 'runtime/node', 'runtime/postgresql/bin/postgres', 'Install-MOMS.sh']}
+        files['src/server.js'] = source
         manifest = {'format': 1, 'platform': 'linux', 'arch': 'x64', 'version': '0.1.0', 'nodeMajor': 22, 'postgresMajor': 16, 'files': [{'path': p, 'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()} for p, data in files.items()]}
         if corrupt:
             files['src/server.js'] = b'changed'
@@ -67,6 +68,14 @@ class ReleaseValidation(unittest.TestCase):
     def test_nonexecutable_installer_rejected(self):
         self.fixture(executable=False)
         with self.assertRaisesRegex(AssertionError, 'not executable'): self.validate()
+
+    def test_windows_checkout_line_endings(self):
+        self.fixture(source=b'fixture\r\n'); self.validate()
+
+    def test_binary_line_endings_not_normalized(self):
+        self.fixture(source=b'fixture\r\n\0')
+        (self.root / 'src/server.js').write_bytes(b'fixture\n\0')
+        with self.assertRaisesRegex(AssertionError, 'source differs'): self.validate()
 
     def test_source_difference_rejected(self):
         self.fixture(); (self.root / 'src/server.js').write_bytes(b'different source')
