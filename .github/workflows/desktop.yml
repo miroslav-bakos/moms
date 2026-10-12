@@ -57,16 +57,22 @@ jobs:
           if [ "$RUNNER_OS" = 'Windows' ]; then suffix='.exe'; fi
           node scripts/build-desktop.js --output "$RUNNER_TEMP/moms-bundle" --node "$RUNNER_TEMP/moms-runtime/node$suffix" --postgres "$RUNNER_TEMP/moms-runtime/postgresql"
           node scripts/check-desktop.js --ipc
-          node scripts/check-desktop-install.js --bundle "$RUNNER_TEMP/moms-bundle"
       - name: Archive bundle with executable permissions
         shell: bash
         run: |
-          tar -czf "$RUNNER_TEMP/moms-${{ matrix.target }}.tar.gz" -C "$RUNNER_TEMP" moms-bundle
+          archive_dir="$RUNNER_TEMP"
+          if [ "$RUNNER_OS" = 'Windows' ]; then archive_dir="$(cygpath -u "$RUNNER_TEMP")"; fi
+          cd "$archive_dir"
+          tar -czf "moms-${{ matrix.target }}.tar.gz" moms-bundle
           node -e "const fs=require('node:fs'),crypto=require('node:crypto');const p=process.env.RUNNER_TEMP+'/moms-${{ matrix.target }}.tar.gz';fs.writeFileSync(p+'.sha256',crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex')+'  moms-${{ matrix.target }}.tar.gz\n')"
+      - name: Verify native installation, updates and recovery
+        shell: bash
+        run: node scripts/check-desktop-install.js --bundle "$RUNNER_TEMP/moms-bundle"
       - uses: actions/upload-artifact@v4
         with:
           name: moms-${{ matrix.target }}
           path: |
             ${{ runner.temp }}/moms-${{ matrix.target }}.tar.gz
             ${{ runner.temp }}/moms-${{ matrix.target }}.tar.gz.sha256
+          compression-level: 0
           retention-days: 14

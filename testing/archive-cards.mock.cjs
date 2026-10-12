@@ -67,7 +67,7 @@ const server = http.createServer((req,res) => {
      return route.fulfill({body:'fixture export',headers:{'Content-Type':'text/csv'}});
    }
    if(u.pathname==='/api/orders') {
-     if(labelPreviewFixture){
+     if(labelPreviewFixture && !u.searchParams.get('pinned')){
        const preview={id:965,external_order_id:'Preview-open',channel:'manual',vendor:'Manual',skus:'Preview product',workflow_status:'new',shipped:false,label_url:'/labels/fixture.pdf'};
        return route.fulfill({json:u.searchParams.get('status')==='archive'?{orders:[{...preview,id:966,external_order_id:'Preview-archived',shipped:true}],total:1}:[preview]});
      }
@@ -467,7 +467,7 @@ const server = http.createServer((req,res) => {
  await page.context().route('**/labels/fixture.pdf',route=>route.fulfill({body:'Fixture label preview',contentType:'text/plain'}));
  for(const language of ['en','sk'])for(const width of [1500,390]){
   await page.setViewportSize({width,height:950});
-  await page.evaluate(language=>{window.i18n.setLanguage(language);document.getElementById('boardSearch').value='';state.filters.open={};state.filters.archive={};state.archivePage=0;state.openOrders=[{id:965,external_order_id:'Preview-open',channel:'manual',vendor:'Manual',skus:'Preview product',workflow_status:'new',shipped:false,label_url:'/labels/fixture.pdf'}];state.archiveOrders=[{...state.openOrders[0],id:966,external_order_id:'Preview-archived',shipped:true}];state.archiveTotal=1;state.boardArchiveOrders=state.archiveOrders;state.boardArchiveTotal=1;state.boardShippedCollapsed=false;state.boardStage='new';setView('board');renderTables();},language);
+  await page.evaluate(language=>{window.i18n.setLanguage(language);document.getElementById('boardSearch').value='';state.pinnedOrders=[];state.pinnedOrderIds.clear();state.filters.open={};state.filters.archive={};state.archivePage=0;state.openOrders=[{id:965,external_order_id:'Preview-open',channel:'manual',vendor:'Manual',skus:'Preview product',workflow_status:'new',shipped:false,label_url:'/labels/fixture.pdf'}];state.archiveOrders=[{...state.openOrders[0],id:966,external_order_id:'Preview-archived',shipped:true}];state.archiveTotal=1;state.boardArchiveOrders=state.archiveOrders;state.boardArchiveTotal=1;state.boardShippedCollapsed=false;state.boardStage='new';setView('board');renderTables();},language);
   for(const [view,id] of [['board',965],['open',965],['archive',966]]){
    await page.evaluate(({view,width})=>{if(view==='archive')state.archiveLayout=width<=640?'cards':'table';setView(view);renderTables();},{view,width});
    const scope=view==='board'?page.locator(`[data-order-id="${id}"]`):page.locator(`#${view}Table`);

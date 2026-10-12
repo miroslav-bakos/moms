@@ -53,7 +53,7 @@ async function actual(bundle){
   const net=require('node:net');const socket=net.createServer();await new Promise(resolve=>socket.listen(0,'127.0.0.1',resolve));const port=socket.address().port;await new Promise(resolve=>socket.close(resolve));
   fs.mkdirSync(dataRoot);fs.writeFileSync(path.join(dataRoot,'.env'),`PORT=${port}\nPOLL_ON_START=false\n`,{mode:0o600});
   try{
-    verificationStage='first boot';
+    verificationStage='first boot';console.log('Native installer: '+verificationStage);
     await install({bundle,root,dataRoot});assert.equal((await fetch(`http://127.0.0.1:${port}/health`)).status,200);
     const record=JSON.parse(fs.readFileSync(path.join(dataRoot,'postgres','connection.json'),'utf8'));
     const {Pool}=require('pg'),{connection}=require('../src/desktop/postgres');
@@ -64,13 +64,13 @@ async function actual(bundle){
     const store=require('../src/settings/store');store.write({values:{APP_SECRET:'desktop-fixture-secret-with-32-characters'}});
     const key=fs.readFileSync(path.join(dataRoot,'settings','settings.key'));
     const update=path.join(temp,'Actual Update');fs.cpSync(bundle,update,{recursive:true});manifest(update,'0.1.1');
-    verificationStage='update';
+    verificationStage='update';console.log('Native installer: '+verificationStage);
     await install({bundle:update,root,dataRoot});assert.equal(state(root).current,verify(update).id);
     assert.equal(fs.readFileSync(label,'utf8'),'preserved-label');assert.deepEqual(fs.readFileSync(path.join(dataRoot,'settings','settings.key')),key);
-    verificationStage='rollback';await install({root,dataRoot,rollback:true});assert.equal(state(root).current,verify(bundle).id);
+    verificationStage='rollback';console.log('Native installer: '+verificationStage);await install({root,dataRoot,rollback:true});assert.equal(state(root).current,verify(bundle).id);
     const broken=path.join(temp,'Actual Failed Boot');fs.cpSync(bundle,broken,{recursive:true});
     fs.writeFileSync(path.join(broken,'src','desktop','worker.js'),"console.error('Disposable failed boot');process.exit(1);\n");manifest(broken,'0.1.2');
-    verificationStage='failed-boot restoration';await assert.rejects(install({bundle:broken,root,dataRoot}));
+    verificationStage='failed-boot restoration';console.log('Native installer: '+verificationStage);await assert.rejects(install({bundle:broken,root,dataRoot}));
     assert.equal(state(root).current,verify(bundle).id);
     assert.equal((await request(dataRoot,'status')).status,'running');
     assert.equal(fs.readFileSync(label,'utf8'),'preserved-label');assert.deepEqual(fs.readFileSync(path.join(dataRoot,'settings','settings.key')),key);
