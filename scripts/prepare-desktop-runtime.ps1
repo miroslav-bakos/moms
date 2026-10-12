@@ -16,7 +16,13 @@ try {
   Write-Output 'Extracting Node runtime.'
   Expand-Archive (Join-Path $work 'node.zip') (Join-Path $work 'node')
   Write-Output 'Extracting PostgreSQL runtime.'
-  Expand-Archive (Join-Path $work 'postgres.zip') (Join-Path $work 'postgres')
+  $postgresOutput = Join-Path $work 'postgres'
+  New-Item -ItemType Directory -Path $postgresOutput | Out-Null
+  # Avoid extracting thousands of pgAdmin/Python files that MOMS never ships.
+  & tar.exe -xf (Join-Path $work 'postgres.zip') -C $postgresOutput --exclude 'pgsql/pgAdmin 4'
+  if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL runtime extraction failed.' }
+  & tar.exe -xf (Join-Path $work 'postgres.zip') -C $postgresOutput 'pgsql/pgAdmin 4/python/vcruntime140.dll' 'pgsql/pgAdmin 4/python/vcruntime140_1.dll'
+  if ($LASTEXITCODE -ne 0) { throw 'Microsoft runtime extraction failed.' }
   New-Item -ItemType Directory -Path $Destination | Out-Null
   Copy-Item (Join-Path $work 'node/node-v22.23.3-win-x64/node.exe') (Join-Path $Destination 'node.exe')
   Copy-Item (Join-Path $work 'node/node-v22.23.3-win-x64/LICENSE') (Join-Path $Destination 'NODE-LICENSE')
