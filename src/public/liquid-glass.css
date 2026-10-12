@@ -165,14 +165,18 @@ input[type="search"],.board-toolbar input,.archive-toolbar input,
 
 #boardManagementPanel { margin-bottom: 16px; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
 #boardManagementPanel h3 { margin-top: 0; }
+#boardManagementPanel .work-filters > .actions { align-self: flex-end; align-items: center; }
+#boardManagementPanel .work-filters > .actions button { min-height: 44px; padding: 8px 12px; font-size: 13px; }
+#refreshBoard,#boardSearchToggle,#boardFiltersToggle { width: 36px; height: 36px; padding: 0; flex: none; }
 #boardManagementPanel .work-filters { border: 0; padding: 0; margin-bottom: 0; }
 #boardFiltersToggle[aria-pressed="true"] { background: var(--nav-hover); color: var(--accent); border-color: var(--accent); }
 .dash-value { margin-top: 10px; font-size: 26px; font-weight: 650; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .dash-value small { font-size: 13px; font-weight: 400; }
 @media (min-width:1024px) {
-  .board-controls { grid-template-columns: minmax(0,1fr) auto auto; }
+  .board-controls { grid-template-columns: minmax(0,1fr) auto auto auto; }
   .board-controls #refreshBoard { grid-column: 2; }
-  .board-controls #boardFiltersToggle { grid-column: 3; grid-row: 1; }
+  .board-controls #boardSearchToggle { grid-column: 3; grid-row: 1; }
+  .board-controls #boardFiltersToggle { grid-column: 4; grid-row: 1; }
 }
 @media (min-width:1024px) {
   #dashboardContent > .dash-grid:first-child { grid-template-columns: repeat(3,minmax(0,1fr)); }
@@ -181,7 +185,7 @@ input[type="search"],.board-toolbar input,.archive-toolbar input,
 @media (max-width:1023px) {
   #boardView .board-controls .section-head { flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 10px; }
   #boardView .board-controls h2 { flex: 1; margin: 0; min-width: 0; }
-  #boardFiltersToggle,#refreshBoard { flex: none; }
+  #boardFiltersToggle,#boardSearchToggle,#refreshBoard { flex: none; width: 44px; height: 44px; }
 }
 
 .board-management-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
