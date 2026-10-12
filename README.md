@@ -104,7 +104,7 @@ Docker keeps the database in a named volume and mounts `settings/`, `labels/` an
 
 After backing up, update your checkout and run `docker compose up -d --build`. Do not use `docker compose down -v` unless you intend to delete database volumes.
 
-[Desktop installation](docs/DESKTOP.md) documents the native launcher and bundle tooling. Windows/macOS packaging still needs native acceptance testing; a source repository is not a promise of a tested installer for every platform.
+[Native build downloads and Mac/Pi pilot testing](docs/NATIVE-BUILDS.md) describes GitHub-built bundles for macOS Apple Silicon/Intel and Raspberry Pi ARM64. [Desktop installation](docs/DESKTOP.md) documents the native launcher and bundle tooling. Windows/macOS packaging still needs native acceptance testing; a source repository is not a promise of a tested installer for every platform.
 
 ## Development
 

@@ -1,13 +1,15 @@
 #!/bin/sh
-# Publisher-pinned runtime preparation on the native Linux x64/macOS arm64 build host.
+# Publisher-pinned runtime preparation on native Linux/macOS x64 and ARM64 hosts.
 set -eu
 destination=${1:?Supply a new absolute output directory}
 case "$destination" in /*) ;; *) echo 'Output must be absolute.' >&2; exit 2;; esac
 [ ! -e "$destination" ] || { echo 'Existing output will not be overwritten.' >&2; exit 2; }
 case "$(uname -s)/$(uname -m)" in
   Linux/x86_64) node_archive=node-v22.23.3-linux-x64.tar.gz; node_hash=1084aa36196bba4c3a5e69a1ee388a6e4ff729dad09445fbcd434b28fe3c24af;;
+  Linux/aarch64|Linux/arm64) node_archive=node-v22.23.3-linux-arm64.tar.gz; node_hash=5ced2d48d1d7198739b7f86804de0171aefb6823b684b12341d3321afc3cb0b2;;
+  Darwin/x86_64) node_archive=node-v22.23.3-darwin-x64.tar.gz; node_hash=8a677b0219178efd6eb0e475457c4afb452b521a92f6e67845a73bd85727f2a8;;
   Darwin/arm64) node_archive=node-v22.23.3-darwin-arm64.tar.gz; node_hash=23b25245dcfb9af7262f8ff142e9e2e0af025368117329e7a7458a51e5922f53;;
-  *) echo 'Use a native Linux x64 or macOS Apple Silicon build host.' >&2; exit 2;;
+  *) echo 'Use a native Linux or macOS x64/ARM64 build host.' >&2; exit 2;;
 esac
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
