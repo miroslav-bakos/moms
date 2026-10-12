@@ -14,6 +14,7 @@ const server = http.createServer((req,res) => {
  const browser=await chromium.launch({headless:true, ...(process.env.MOMS_CHROMIUM_PATH ? {executablePath:process.env.MOMS_CHROMIUM_PATH} : {})});
  const page=await browser.newPage({viewport:{width:1500,height:950},serviceWorkers:'block'});
  await page.addInitScript(()=>localStorage.setItem('mobile-connect-seen','true'));
+ let labelPreviewFixture=false;
  let boardArchiveFixture=false,failBoardArchive=false,holdBoardArchive=null;const boardArchiveRequests=[];
  const archiveFixtures=Array.from({length:65},(_,index)=>({id:8000+index,external_order_id:`Archived-${index}`,channel:'manual',vendor:'Manual',skus:index===64?'Deep archive needle <safe>':'Archived product',address:'Archived customer\nSlovakia',workflow_status:'crafted',shipped:true,ship_by_date:'2020-01-01',created_at:new Date(Date.UTC(2026,9,1,0,0,65-index)).toISOString()}));
  const exportRequests=[];const openExportRequests=[];let failStatus=false,failReorder=false,failAppearance=false,failSales=false;const statusRequests=[];const salesRequests=[];let holdSalesNext=null;
@@ -66,6 +67,10 @@ const server = http.createServer((req,res) => {
      return route.fulfill({body:'fixture export',headers:{'Content-Type':'text/csv'}});
    }
    if(u.pathname==='/api/orders') {
+     if(labelPreviewFixture){
+       const preview={id:965,external_order_id:'Preview-open',channel:'manual',vendor:'Manual',skus:'Preview product',workflow_status:'new',shipped:false,label_url:'/labels/fixture.pdf'};
+       return route.fulfill({json:u.searchParams.get('status')==='archive'?{orders:[{...preview,id:966,external_order_id:'Preview-archived',shipped:true}],total:1}:[preview]});
+     }
      if(u.searchParams.get('pinned'))data=[];
      else if(u.searchParams.get('status')==='archive'){
        const offset=Number(u.searchParams.get('offset')||0);
@@ -458,6 +463,7 @@ const server = http.createServer((req,res) => {
  releaseArchive();await page.waitForTimeout(150);
  assert.equal(await page.evaluate(()=>state.boardArchiveOrders[0]?.id),8064,'Late archive search cannot replace current results');
  assert(await page.evaluate(()=>state.openOrders.every(order=>!order.shipped)),'Showing archive does not archive open orders');
+ labelPreviewFixture=true;
  await page.context().route('**/labels/fixture.pdf',route=>route.fulfill({body:'Fixture label preview',contentType:'text/plain'}));
  for(const language of ['en','sk'])for(const width of [1500,390]){
   await page.setViewportSize({width,height:950});
