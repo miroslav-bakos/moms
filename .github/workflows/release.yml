@@ -5,24 +5,31 @@ on:
       build_run_id:
         description: Successful Desktop bundles run ID
         required: true
+      verify_run_id:
+        description: Successful Verify run ID for the same main commit
+        required: true
       target_sha:
         description: Reviewed release source commit
         required: true
       tag:
         description: Version tag matching bundle manifests
         required: true
-        default: v0.1.0
 permissions:
   contents: write
   actions: read
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
 jobs:
   publish:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      VERIFY_RUN_ID: ${{ inputs.verify_run_id }}
       TARGET_SHA: ${{ inputs.target_sha }}
       RELEASE_TAG: ${{ inputs.tag }}
     steps:
@@ -36,16 +43,11 @@ jobs:
         shell: bash
         run: |
           [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
-          [[ "$TARGET_SHA" =~ ^[a-f0-9]{40}$ ]]
-          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$VERIFY_RUN_ID" =~ ^[0-9]+$ ]]
           gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN_ID" > "$RUNNER_TEMP/build.json"
-          python3 - "$RUNNER_TEMP/build.json" <<'PY'
-          import json, subprocess, sys
-          run = json.load(open(sys.argv[1]))
-          assert run['status'] == 'completed' and run['conclusion'] == 'success'
-          assert run['path'] == '.github/workflows/desktop.yml' and run['head_branch'] == 'main'
-          subprocess.run(['git', 'merge-base', '--is-ancestor', run['head_sha'], 'HEAD'], check=True)
-          PY
+          gh api "repos/$GH_REPO/actions/runs/$VERIFY_RUN_ID" > "$RUNNER_TEMP/verify.json"
+          git fetch origin main --tags
+          python3 .github/scripts/validate-release-gates.py "$RUNNER_TEMP/build.json" "$RUNNER_TEMP/verify.json" "$TARGET_SHA" "$RELEASE_TAG" "$GH_REPO"
       - uses: actions/download-artifact@v4
         with:
           run-id: ${{ inputs.build_run_id }}
