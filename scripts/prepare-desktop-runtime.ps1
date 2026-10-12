@@ -1,16 +1,21 @@
 param([Parameter(Mandatory=$true)][string]$Destination)
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 if (-not [IO.Path]::IsPathRooted($Destination) -or (Test-Path $Destination)) { throw 'Supply a new absolute output directory.' }
 $work = Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $work | Out-Null
 function Download-Pinned($Url, $File, $Hash) {
-  Invoke-WebRequest -Uri $Url -OutFile $File
+  Write-Output ("Downloading pinned runtime: " + [IO.Path]::GetFileName($File))
+  & curl.exe --fail --location --retry 2 --connect-timeout 30 --max-time 300 --silent --show-error --output $File $Url
+  if ($LASTEXITCODE -ne 0) { throw 'Runtime download failed.' }
   if ((Get-FileHash -Algorithm SHA256 $File).Hash.ToLowerInvariant() -ne $Hash) { throw 'Runtime archive checksum mismatch.' }
 }
 try {
   Download-Pinned 'https://nodejs.org/dist/v22.23.3/node-v22.23.3-win-x64.zip' (Join-Path $work 'node.zip') '2b0ff57b049cda1bbcea2240eec20467018713c1efe1f7360c2681859b90ed71'
   Download-Pinned 'https://get.enterprisedb.com/postgresql/postgresql-16.15-1-windows-x64-binaries.zip' (Join-Path $work 'postgres.zip') '25e6fcdfb8caec38691bf461125e7564508760666f7b8e5dc6a5f0818f58f81e'
+  Write-Output 'Extracting Node runtime.'
   Expand-Archive (Join-Path $work 'node.zip') (Join-Path $work 'node')
+  Write-Output 'Extracting PostgreSQL runtime.'
   Expand-Archive (Join-Path $work 'postgres.zip') (Join-Path $work 'postgres')
   New-Item -ItemType Directory -Path $Destination | Out-Null
   Copy-Item (Join-Path $work 'node/node-v22.23.3-win-x64/node.exe') (Join-Path $Destination 'node.exe')
