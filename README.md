@@ -8,11 +8,27 @@ MOMS is a free, self-hosted application for makers, artists, sole traders and sm
 
 ## Features
 
-- Orders from SAShE, Etsy, Amazon and Shopify, plus manually entered orders.
-- Production board, deadlines, stock, product recipes and material requirements.
-- Recorded costs and profitability by period, channel and product; configurable VAT treatment for registered and non-registered sellers.
-- Shipping workflows, tracking, labels and accounting exports.
-- Local PostgreSQL storage, backups and a browser interface usable on your LAN.
+- **Orders:** marketplace synchronization and manual entry, order details, SKU mappings, deadlines, filtering and archiving.
+- **Production:** configurable workflow stages, product recipes, material requirements and stock allocation by order. Completing production consumes stock once; reopening restores the recorded stock snapshot.
+- **Inventory:** materials, finished products, receipts and shortage planning.
+- **Costs:** recorded production, shipping, marketplace, payment and other costs; contribution/profit views by period, channel and product. Sellers can configure VAT registration and rates, including non-payer treatment.
+- **Dispatch:** carrier labels, tracking, shipment records and explicit marketplace shipment confirmation. Local archiving and remote confirmation are tracked separately.
+- **Operations:** accounting CSV handoff, encrypted secret settings, full backups and recovery, synchronization/backup diagnostics, English/Slovak interface and phone access over a private LAN.
+
+## Supported APIs and actions
+
+| Integration | Read/import actions | Write actions | Requirements and limits |
+| --- | --- | --- | --- |
+| **SAShE seller API** | Orders/packages and their line items and delivery details | No marketplace dispatch writeback | Seller user ID and API key; no OAuth callback |
+| **Etsy Open API v3** | Orders/receipts, items, delivery details and existing shipment tracking | Send full-order shipment tracking and buyer shipping notification | Own approved application and OAuth; `transactions_r` for orders, `transactions_w` and endpoint approval for shipment confirmation |
+| **Amazon Selling Partner API** | Orders and items, permitted delivery data, remote packages; Finances balances; review-request eligibility | Confirm a merchant-fulfilled shipment; request product review/seller feedback when Amazon permits it | Own SP-API application, seller authorization and relevant roles; address access is separately restricted; no FBA shipment automation |
+| **Shopify Admin API** | Orders and items, delivery/payment/fulfillment status, fulfillment orders; Shopify Payments balances when permitted | Create a full-order merchant-managed fulfillment with tracking and customer notification | Store token, own-store client credentials or OAuth; order/fulfillment scopes and additional balance access where applicable |
+| **MyGLS** | Label results and supported tracking information | Create shipping labels with configured sender/account details | MyGLS account and API credentials |
+| **Slovenská pošta integration API** | Label results; supported postal tracking | Create postal shipment labels | Own API credentials, sender, service and customs configuration |
+
+Marketplace shipment writes require one complete eligible order with original item identifiers and matching quantities. Partial marketplace shipment writeback, marketplace refunds/cancellations and listing/catalog management are not supported here. After an unclear write result, reconciliation reads remote tracking instead of blindly sending again. Balance views use provider-reported funds, keep currencies separate and show unavailable data when access is missing; Etsy/SAShE balances are not supported.
+
+See [installation and configuration](docs/INSTALLATION.md), [marketplace connection and callback guide](docs/MARKETPLACE-CONNECTIONS.md), and [seller workflows and dispatch permissions](docs/SELLER-OPERATIONS.md).
 
 Screenshots and project overview: [moms.miroslavbakos.com](https://moms.miroslavbakos.com/). Website screenshots contain fictional demo data.
 
@@ -43,7 +59,7 @@ Configure your own credentials in application settings. Secret fields are stored
 - **Amazon:** a private SP-API application can use its own refresh token. Third-party authorization requires registered callback URLs and the appropriate roles.
 - **Shopify:** supported own-store credentials or OAuth; use the setup guide and the access scopes required by your shop.
 
-Use the callback setup guide if public HTTPS is needed. Tailscale is optional and subject to its own terms. Publishing the whole application through a public tunnel is not necessary for a callback-only setup.
+Use the [callback setup guide](docs/MARKETPLACE-CONNECTIONS.md#tailscale-funnel-for-oauth-callbacks) if public HTTPS is needed. Tailscale is optional and subject to its own terms. Publishing the whole application through a public tunnel is not necessary for a callback-only setup.
 
 ## Data, updates and backups
 
