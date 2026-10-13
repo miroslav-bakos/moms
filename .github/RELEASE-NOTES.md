@@ -1,6 +1,12 @@
-MOMS 0.1.0 is the first public pilot release: free GPLv3 software for makers, artists and small workshops, with no paid tiers or activation limits.
+MOMS 0.1.1 is a pilot update: free GPLv3 software for makers, artists and small workshops, with no paid tiers or activation limits.
 
 Manage SAShE, Etsy, Amazon and Shopify orders, production stages, materials and finished stock, product recipes, recorded costs/VAT and sales summaries. Create shipping labels through Slovenská pošta and GLS Slovakia using your own carrier account; confirm eligible full-order marketplace shipments with saved tracking. Includes backups/recovery and English/Slovak UI.
+
+## Changes since 0.1.0
+
+- Amazon funds now show the next planned release day and amount in the dashboard summary and account details, in English and Slovak. Amounts are grouped by currency using deferred transaction maturity dates from Amazon. The view covers transactions posted in the last 180 days; missing dates and failed refreshes are marked explicitly. A release date is not a bank payout date.
+- The board toolbar uses more compact search and saved-view controls, with mobile support.
+- Release publication now requires matching verified source and native bundle builds. Production deployment remains a separate operator action.
 
 ## Choose your installer bundle
 
