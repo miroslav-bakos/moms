@@ -17,6 +17,19 @@
     if (!value || !Number.isFinite(new Date(value).getTime())) return '';
     return escape(new Date(value).toLocaleString(locale()));
   }
+  function renderRelease(market, compact = false) {
+    if (!market || market.channel !== 'amazon') return '';
+    const schedule = failed && market.releaseSchedule ? {status:'unavailable'} : market.releaseSchedule;
+    if (!schedule) return '';
+    const validDate = /^\d{4}-\d{2}-\d{2}$/.test(schedule.date || '') && Number.isFinite(new Date(schedule.date).getTime());
+    const when = validDate ? escape(new Date(schedule.date).toLocaleDateString(locale(), {timeZone:'UTC'})) : '';
+    return `<div class="amazon-release">
+      <p><strong>${escape(t('Next planned Amazon funds release'))}</strong>: ${when && schedule.amounts?.length ? `<time data-no-translate datetime="${escape(schedule.date)}">${when}</time> · <span data-no-translate>${schedule.amounts.map(row => amount(row.amount,row.currency)).join(' + ')}</span>` : escape(t(schedule.status === 'no_schedule' ? 'No upcoming release date reported.' : 'Release schedule unavailable.'))}</p>
+      ${schedule.status === 'partial' ? `<p class="muted">${escape(t('Some held transactions have no upcoming date. The displayed release may be incomplete.'))}</p>` : ''}
+      ${when && !compact ? `<p class="muted">${escape(t('Planned release of held funds, not a bank payout. Dates use UTC.'))}</p>` : ''}
+      <p class="muted">${escape(t('Based on Amazon transactions posted in the last 180 days.'))}</p>
+    </div>`;
+  }
   function renderSummary() {
     const root = document.getElementById('marketplaceBalanceSummary');
     if (!root) return;
@@ -26,6 +39,7 @@
       ${currencies.length ? currencies.map(row => `<div class="dash-value" data-no-translate>${amount(row.total,row.currency)}</div>`).join('') : `<div class="muted">${escape(t(busy ? 'Loading balances…' : summary?.currencies?.length ? 'No non-zero balances.' : 'Unavailable'))}</div>`}
       ${summary?.currencies?.length && summary.unavailableMarketplaces?.length ? `<p class="muted">${escape(t('Partial total. Unavailable marketplaces'))}: <span data-no-translate>${summary.unavailableMarketplaces.map(escape).join(', ')}</span></p>` : ''}
       ${summary?.stale || (failed && summary?.currencies?.length) ? `<p class="balance-warning">${escape(t('Includes last successful balances. Refresh failed.'))}</p>` : ''}
+      ${renderRelease(snapshot?.marketplaces?.find(market => market.channel === 'amazon'), true)}
       ${summary?.checkedAt ? `<p class="muted">${escape(t('Last successful check'))}: <time data-no-translate datetime="${escape(summary.checkedAt)}">${date(summary.checkedAt)}</time></p>` : ''}`;
   }
   function render() {
@@ -46,6 +60,7 @@
           ${row.updatedAt ? `<p class="muted"><span>${escape(t('Source updated'))}</span>: <time data-no-translate datetime="${escape(row.updatedAt)}">${date(row.updatedAt)}</time></p>` : ''}
           ${row.available === null && row.total !== null ? `<p class="muted">${escape(t('Payout availability is not provided by the marketplace API.'))}</p>` : ''}
         </div>`).join('')}
+        ${renderRelease(market)}
         ${market.stale ? `<p class="balance-warning" role="status">${escape(t('Refresh failed. Showing the last successful balance.'))}</p>` : market.status && statuses[market.status] ? `<p class="muted">${escape(t(statuses[market.status]))}</p>` : ''}
         ${market.checkedAt ? `<p class="muted"><span>${escape(t(market.stale ? 'Last successful check' : 'Checked'))}</span>: <time data-no-translate datetime="${escape(market.checkedAt)}">${date(market.checkedAt)}</time></p>` : ''}
       </article>`).join('') || `<p class="muted">${escape(t('No non-zero balances.'))}</p>`}</div>
