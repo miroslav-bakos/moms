@@ -1262,5 +1262,11 @@
   "Invalid VAT settings revision.": "Neplatná verzia nastavenia DPH.",
   "VAT settings changed. Reload and try again.": "Nastavenie DPH sa zmenilo. Obnovte stránku a skúste to znova.",
   "Use the same VAT basis for recipe costs and reference prices. VAT defaults do not convert recipe amounts.": "Pre náklady receptúr a referenčné ceny používajte rovnaký základ DPH. Nastavenie DPH neprepočítava sumy receptúr.",
-  "Order revenue changed. Review VAT.": "Suma objednávky sa zmenila. Skontrolujte DPH."
+  "Order revenue changed. Review VAT.": "Suma objednávky sa zmenila. Skontrolujte DPH.",
+  "Next planned Amazon funds release": "Najbližšie plánované uvoľnenie peňazí na Amazone",
+  "No upcoming release date reported.": "Amazon neuviedol najbližší termín uvoľnenia.",
+  "Release schedule unavailable.": "Termín uvoľnenia nie je dostupný.",
+  "Some held transactions have no upcoming date. The displayed release may be incomplete.": "Niektoré blokované transakcie nemajú budúci termín. Zobrazené uvoľnenie môže byť neúplné.",
+  "Planned release of held funds, not a bank payout. Dates use UTC.": "Plánované uvoľnenie blokovaných peňazí, nie výplata na bankový účet. Dátumy sú v UTC.",
+  "Based on Amazon transactions posted in the last 180 days.": "Podľa transakcií zaúčtovaných Amazonom za posledných 180 dní."
 }

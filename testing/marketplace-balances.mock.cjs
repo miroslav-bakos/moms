@@ -19,7 +19,7 @@ const server=http.createServer((req,res)=>{
       await page.addInitScript(language=>{localStorage.setItem('mobile-connect-seen','true');localStorage.setItem('moms-local-setup-v1',JSON.stringify({done:true}));localStorage.setItem('local-orders-language',language);},language);
       let fail=false,refreshes=0,hold=null;
       const stamp='2026-10-07T08:00:00Z';
-      const marketplaces=[{channel:'amazon',name:'Amazon',status:'ok',checkedAt:stamp,rows:[{account:'DE · <img src=x onerror=alert(1)>',currency:'EUR',available:'0',total:'123.45',updatedAt:stamp},{account:'Zero account',currency:'GBP',available:'0.00',total:'0.00'},{account:'US · Standard Orders',currency:'USD',available:'15',total:'27'}]},
+      const marketplaces=[{channel:'amazon',name:'Amazon',status:'ok',releaseSchedule:{status:'ok',date:'2099-10-14',amounts:[{currency:'EUR',amount:'42.35'},{currency:'USD',amount:'5'}]},checkedAt:stamp,rows:[{account:'DE · <img src=x onerror=alert(1)>',currency:'EUR',available:'0',total:'123.45',updatedAt:stamp},{account:'Zero account',currency:'GBP',available:'0.00',total:'0.00'},{account:'US · Standard Orders',currency:'USD',available:'15',total:'27'}]},
         {channel:'etsy',name:'Etsy',status:'unsupported',checkedAt:stamp,rows:[]},
         {channel:'shopify',name:'Shopify',status:'ok',checkedAt:stamp,rows:[{account:'Shopify Payments',currency:'EUR',available:null,total:'99.95'}]},
         {channel:'sashe',name:'SAShE',status:'unsupported',checkedAt:stamp,rows:[]}];
@@ -54,6 +54,11 @@ const server=http.createServer((req,res)=>{
       assert(await panel.locator('.marketplace-balances-grid').isVisible(),'Dashboard refresh preserves expanded state');
 
       assert.equal(await panel.locator('article').count(),4);
+      const releaseInfo=panel.locator('.amazon-release');
+      assert((await releaseInfo.innerText()).includes(language==='sk'?'42,35':'42.35'));
+      assert((await releaseInfo.innerText()).includes(language==='sk'?'Najbližšie plánované':'Next planned'));
+      assert.equal(await releaseInfo.locator('time').getAttribute('datetime'),'2099-10-14');
+      assert.equal(await page.locator('#marketplaceBalanceSummary .amazon-release').count(),1,'Next release is visible in the compact summary');
       const summary=page.locator('#marketplaceBalanceSummary');
       assert.equal(await page.locator('.open-order-value #marketplaceBalanceSummary').count(),1,'Summary is below open order value in its card');
       assert.equal(await summary.locator('.dash-value').count(),2,'Currencies stay separate');
@@ -76,12 +81,25 @@ const server=http.createServer((req,res)=>{
       assert(await panel.locator('#refreshBalances').isDisabled());fail=true;release();hold=null;
       await page.waitForFunction(()=>!document.querySelector('#refreshBalances').disabled);
       assert.equal(refreshes,1);
+      assert.equal(await releaseInfo.locator('time').count(),0,'Failed refresh must not present an old release as upcoming');
       assert.equal(await summary.locator('.balance-warning').count(),1,'Aggregate warns when last balances are stale');
       assert.equal(await panel.locator('.balance-warning').count(),2,'Failed refresh labels previously successful amounts');
       assert((await panel.locator('[data-marketplace="amazon"]').innerText()).includes(language==='sk'?'123,45':'123.45'));
       fail=false;await panel.locator('#refreshBalances').click();
       await page.waitForFunction(()=>!document.querySelector('#refreshBalances').disabled);
       assert.equal(await panel.locator('.balance-warning').count(),0);assert.equal(await summary.locator('.balance-warning').count(),0);
+      marketplaces[0].releaseSchedule={status:'partial',date:'2099-10-14',amounts:[{currency:'EUR',amount:'42.35'}]};
+      await panel.locator('#refreshBalances').click();await page.waitForFunction(()=>!document.querySelector('#refreshBalances').disabled);
+      assert((await releaseInfo.innerText()).includes(language==='sk'?'môže byť neúplné':'may be incomplete'));
+      for(const status of ['no_schedule','unavailable']) {
+        marketplaces[0].releaseSchedule={status,date:null,amounts:[]};
+        await panel.locator('#refreshBalances').click();await page.waitForFunction(()=>!document.querySelector('#refreshBalances').disabled);
+        assert.equal(await releaseInfo.locator('time').count(),0);
+        assert(!(await releaseInfo.innerText()).includes(language==='sk'?'42,35':'42.35'));
+        assert((await releaseInfo.innerText()).includes(status==='no_schedule'?(language==='sk'?'neuviedol':'No upcoming'):(language==='sk'?'nie je dostupný':'unavailable')));
+      }
+      marketplaces[0].releaseSchedule={status:'ok',date:'2099-10-14',amounts:[{currency:'EUR',amount:'42.35'}]};
+      await panel.locator('#refreshBalances').click();await page.waitForFunction(()=>!document.querySelector('#refreshBalances').disabled);
       await page.evaluate(()=>window.i18n.setLanguage(window.i18n.language==='en'?'sk':'en'));
       assert((await panel.locator('h3').innerText()).includes(language==='en'?'Zostatky':'Marketplace'));
       await page.evaluate(language=>{window.i18n.setLanguage(language);document.documentElement.dataset.theme='dark';},language);

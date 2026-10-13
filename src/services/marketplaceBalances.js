@@ -58,6 +58,65 @@ async function readAmazon(request, markets, signal, pause = ms => new Promise(re
   }
   throw new Error('Balance pagination limit reached');
 }
+// Source: Amazon Finances v2024-06-19 listTransactions / DeferredContext.maturityDate.
+// Aggregate transaction totals only (item breakdowns are already included).
+function amazonReleaseSchedule(transactions, at) {
+  const days = new Map(), seen = new Set();
+  const today = new Date(at).toISOString().slice(0, 10);
+  let partial = false;
+  for (const transaction of transactions) {
+    if (transaction.transactionStatus !== 'DEFERRED') continue;
+    if (!transaction.transactionId || seen.has(transaction.transactionId)) throw new Error('Invalid or duplicate deferred transaction');
+    seen.add(transaction.transactionId);
+    const contexts = (transaction.contexts || []).filter(context => context.contextType === 'DeferredContext');
+    if (contexts.length !== 1 || !contexts[0].maturityDate) { partial = true; continue; }
+    const maturity = sourceTime(contexts[0].maturityDate);
+    const day = maturity.slice(0, 10);
+    // Past dates on still-deferred transactions cannot promise an upcoming release.
+    if (day < today) { partial = true; continue; }
+    const value = money(transaction.totalAmount?.currencyAmount, transaction.totalAmount?.currencyCode);
+    if (!days.has(day)) days.set(day, []);
+    days.get(day).push({currency: value.currency, total: value.amount});
+  }
+  for (const [date, rows] of [...days].sort(([a], [b]) => a.localeCompare(b))) {
+    const amounts = summarizeBalances([{name:'Amazon',rows}]).currencies
+      .filter(row => Number(row.total) > 0).map(row => ({currency:row.currency,amount:row.total}));
+    if (amounts.length) return {status:partial ? 'partial' : 'ok', date, amounts};
+  }
+  return {status:partial ? 'partial' : 'no_schedule', date:null, amounts:[]};
+}
+async function readAmazonRelease(request, at, signal, pause = ms => new Promise(resolve => setTimeout(resolve, ms))) {
+  const transactions = [], tokens = new Set();
+  // API limits a date window to 180 days. Keep the same window on every page.
+  const end = at - 180000;
+  const query = {transactionStatus:'DEFERRED', postedAfter:new Date(end - 180 * 86400000).toISOString(), postedBefore:new Date(end).toISOString()};
+  let nextToken;
+  for (let page = 0; page < 20; page++) {
+    if (signal?.aborted) throw new Error('Release request timed out');
+    const data = await request({path:'/finances/2024-06-19/transactions', query:{...query,...(nextToken ? {nextToken} : {})},signal});
+    if (!Array.isArray(data?.transactions)) throw new Error('Invalid Amazon transaction response');
+    transactions.push(...data.transactions);
+    nextToken = data.nextToken;
+    if (!nextToken) return amazonReleaseSchedule(transactions, at);
+    if (typeof nextToken !== 'string' || tokens.has(nextToken)) throw new Error('Repeated release pagination token');
+    tokens.add(nextToken);
+    await pause(2100);
+  }
+  throw new Error('Release pagination limit reached');
+}
+async function loadAmazonRelease(request, at, timeoutMs, pause) {
+  const controller = new AbortController();
+  let timer;
+  try {
+    return await Promise.race([
+      readAmazonRelease(request, at, controller.signal, pause),
+      new Promise((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(new Error('Release timeout')); }, timeoutMs); })
+    ]);
+  } catch (_) {
+    // Never expose provider errors or a partially fetched schedule.
+    return {status:'unavailable', date:null, amounts:[]};
+  } finally { clearTimeout(timer); }
+}
 function shopifyRows(balances) {
   if (!Array.isArray(balances)) throw new Error('Invalid Shopify balance response');
   const seen = new Set();
@@ -121,6 +180,7 @@ function createBalanceService({ settings = config, amazon = amazonRequest, shopi
         value = { ...base, status: 'unsupported' };
       } else if (!configured) value = { ...base, status: 'not_configured' };
       else {
+        const release = channel === 'amazon' ? loadAmazonRelease(amazon, now(), timeoutMs, pause) : null;
         const controller = new AbortController();
         let timer;
         try {
@@ -135,6 +195,7 @@ function createBalanceService({ settings = config, amazon = amazonRequest, shopi
           value = { ...base, status };
           if (previous?.value.rows.length) value = { ...value, rows: previous.value.rows, checkedAt: previous.value.checkedAt, stale: true };
         } finally { clearTimeout(timer); }
+        if (release) value.releaseSchedule = await release;
       }
       cache.set(channel, { at: now(), value });
       return value;
@@ -148,4 +209,4 @@ function createBalanceService({ settings = config, amazon = amazonRequest, shopi
   } };
 }
 const service = createBalanceService();
-module.exports = { summarizeBalances, money, amazonRows, shopifyRows, readAmazon, createBalanceService, load: service.load };
+module.exports = { amazonReleaseSchedule, readAmazonRelease, summarizeBalances, money, amazonRows, shopifyRows, readAmazon, createBalanceService, load: service.load };

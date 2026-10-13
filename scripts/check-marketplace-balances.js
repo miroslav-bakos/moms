@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('node:assert/strict');
-const { summarizeBalances, money, amazonRows, shopifyRows, readAmazon, createBalanceService } = require('../src/services/marketplaceBalances');
+const { amazonReleaseSchedule, readAmazonRelease, summarizeBalances, money, amazonRows, shopifyRows, readAmazon, createBalanceService } = require('../src/services/marketplaceBalances');
 // Financial snapshots must never be silently served from an offline SW cache.
 const handlers={};require('node:vm').runInNewContext(require('node:fs').readFileSync(require('node:path').join(__dirname,'../src/public/sw.js'),'utf8'),{self:{addEventListener:(name,handler)=>handlers[name]=handler},URL});
 assert.equal(handlers.fetch,undefined,'Financial snapshots must always use the authenticated network request');
@@ -39,7 +39,7 @@ const total = (id = 'DE', currency = 'EUR', value = 25) => ({balanceType:'TOTAL'
   assert.throws(()=>shopifyRows([{amount:'1',currencyCode:'EUR'},{amount:'2',currencyCode:'EUR'}]));
   let clock=Date.now(), denied=false, reads=0;
   const settings={amazon:{lwaClientId:'fixture',lwaClientSecret:'fixture',refreshToken:'fixture',marketplaceIds:{de:'DE'}},shopify:{shopDomain:'fixture'}};
-  const service=createBalanceService({settings,now:()=>clock,amazon:async()=>{reads++;if(denied){const error=new Error('SECRET PRIVATE PAYLOAD');error.status=403;throw error;}return {balances:[total()]};},shopify:async()=>[{amount:'10.00',currencyCode:'USD'}]});
+  const service=createBalanceService({settings,now:()=>clock,amazon:async({path})=>{if(path.endsWith('/transactions'))return {transactions:[]};reads++;if(denied){const error=new Error('SECRET PRIVATE PAYLOAD');error.status=403;throw error;}return {balances:[total()]};},shopify:async()=>[{amount:'10.00',currencyCode:'USD'}]});
   const [first,second]=await Promise.all([service.load(),service.load()]);assert.deepEqual(first,second);assert.equal(reads,1);
   assert.equal(first.marketplaces.find(item=>item.channel==='etsy').status,'unsupported');
   clock+=1000;await service.load(true);assert.equal(reads,1,'Force refresh has a cooldown');
@@ -49,6 +49,41 @@ const total = (id = 'DE', currency = 'EUR', value = 25) => ({balanceType:'TOTAL'
   const empty=createBalanceService({settings:{}});assert.equal((await empty.load()).marketplaces[0].status,'not_configured');
   const timeout=createBalanceService({settings,timeoutMs:5,amazon:()=>new Promise(()=>{}),shopify:async()=>null});
   const timed=await timeout.load();assert.equal(timed.marketplaces[0].status,'unavailable');assert.equal(timed.marketplaces[2].status,'no_balance');
+  const at=Date.parse('2026-10-13T10:00:00Z');
+  const deferred=(id,amount='0.10',date='2026-10-14T08:00:00Z',currency='EUR')=>({transactionId:id,transactionStatus:'DEFERRED',totalAmount:{currencyAmount:amount,currencyCode:currency},contexts:[{contextType:'DeferredContext',maturityDate:date}]});
+  const tx=[deferred('a'),deferred('b','0.20','2026-10-14T22:00:00Z'),deferred('c','50','2026-10-15T00:00:00Z'),deferred('usd','5','2026-10-14T01:00:00Z','USD'),deferred('fee','-0.05')];
+  tx.push({...deferred('released','999'),transactionStatus:'DEFERRED_RELEASED'});
+  assert.deepEqual(amazonReleaseSchedule(tx,at),{status:'ok',date:'2026-10-14',amounts:[{currency:'EUR',amount:'0.25'},{currency:'USD',amount:'5'}]});
+  assert.equal(amazonReleaseSchedule([...tx,{...deferred('unknown'),contexts:[]}],at).status,'partial');
+  assert.deepEqual(amazonReleaseSchedule([deferred('past','10','2026-10-12T12:00:00Z')],at),{status:'partial',date:null,amounts:[]});
+  assert.equal(amazonReleaseSchedule([deferred('today','1','2026-10-13T00:00:00Z')],at).date,'2026-10-13');
+  assert.equal(amazonReleaseSchedule([deferred('offset','1','2026-10-15T01:00:00+02:00')],at).date,'2026-10-14');
+  assert.equal(amazonReleaseSchedule([],at).status,'no_schedule');
+  assert.throws(()=>amazonReleaseSchedule([tx[0],tx[0]],at),/duplicate/);
+  assert.throws(()=>amazonReleaseSchedule([deferred('bad','not-money')],at));
+  assert.throws(()=>amazonReleaseSchedule([deferred('bad','1','not-a-date')],at));
+  assert.equal(amazonReleaseSchedule([deferred('zero','0'),deferred('later','5','2026-10-15T00:00:00Z')],at).date,'2026-10-15');
+  let queries=[];
+  const schedule=await readAmazonRelease(async({path,query})=>{
+    assert.equal(path,'/finances/2024-06-19/transactions');queries.push(query);
+    return query.nextToken?{transactions:tx}:{transactions:[],nextToken:'second'};
+  },at,null,async()=>{});
+  assert.equal(schedule.amounts[0].amount,'0.25');
+  assert.equal(queries[0].transactionStatus,'DEFERRED');
+  assert.deepEqual(queries[1],{...queries[0],nextToken:'second'});
+  assert.equal(Date.parse(queries[0].postedBefore)-Date.parse(queries[0].postedAfter),180*86400000);
+  await assert.rejects(readAmazonRelease(async()=>({transactions:[],nextToken:'repeat'}),at,null,async()=>{}),/Repeated/);
+  let releaseCalls=0;
+  await assert.rejects(readAmazonRelease(async()=>({transactions:[],nextToken:String(++releaseCalls)}),at,null,async()=>{}),/limit/);
+  releaseCalls=0;
+  await assert.rejects(readAmazonRelease(async()=>{if(releaseCalls++)throw new Error('page failed');return {transactions:tx,nextToken:'next'};},at,null,async()=>{}),/page failed/);
+  await assert.rejects(readAmazonRelease(async()=>({}),at),/Invalid/);
+  const releaseFailure=createBalanceService({settings,timeoutMs:5,amazon:({path})=>path.endsWith('/transactions')?new Promise(()=>{}):Promise.resolve({balances:[total()]}),shopify:async()=>null});
+  const safe=(await releaseFailure.load()).marketplaces[0];
+  assert.equal(safe.status,'ok');assert.equal(safe.rows[0].total,'25');assert.equal(safe.releaseSchedule.status,'unavailable');
+  const withRelease=createBalanceService({settings,now:()=>at,amazon:async({path})=>path.endsWith('/transactions')?{transactions:tx}:{balances:[total()]},shopify:async()=>null});
+  const withSchedule=await withRelease.load();assert.equal(withSchedule.marketplaces[0].releaseSchedule.amounts[0].amount,'0.25');
+  assert.equal(withSchedule.summary.currencies[0].total,'25','Planned releases are already included in balances');
   // Adapter uses only a balance GraphQL query and never returns upstream errors.
   const {config}=require('../src/config');config.shopify.shopDomain='fixture.myshopify.com';config.shopify.accessToken='fixture';
   const {fetchPaymentBalances}=require('../src/channels/shopify');
