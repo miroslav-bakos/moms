@@ -307,7 +307,7 @@ async function saveLabelFile(fileName, pdfBytes) {
     await fs.writeFile(nodePath.join(LABELS_DIR, fileName), pdfBytes);
     return `/labels/${fileName}`;
   } catch {
-    return '';
+    throw new Error('Could not save the generated label.');
   }
 }
 
@@ -372,7 +372,7 @@ async function callGlsApi(shipments) {
   return { pdfBytes, trackingNumbers };
 }
 
-async function createGlsLabels(orders, productMap) {
+async function createGlsLabels(orders, productMap, replacements) {
   const shipments = [];
   const failed = [];
 
@@ -395,12 +395,12 @@ async function createGlsLabels(orders, productMap) {
 
   if (!shipments.length) return { downloads: [], results: failed };
 
-  const previous=await operations.acquire(orders[0].id,'gls');if(previous)return previous;
+  const previous=await operations.acquire(orders[0].id,'gls',replacements[orders[0].id]);if(previous)return previous;
   try {
   const { pdfBytes, trackingNumbers } = await callGlsApi(shipments);
   await operations.checkpoint(orders[0].id,{trackingNumbers});
 
-  const stamp = dateStamp();
+  const stamp = dateStamp() + '_' + crypto.randomUUID();
   const fileName = shipments.length === 1
     ? `GLS_Label_${orders[0].id}_${stamp}.pdf`
     : `GLS_Labels_${stamp}.pdf`;
@@ -482,7 +482,7 @@ function buildCustomsDeclaration(country, productText, weightKg, customsValueEur
   return decl;
 }
 
-async function createPostaLabels(orders, productMap, typeKey) {
+async function createPostaLabels(orders, productMap, typeKey, replacements) {
   const tc = POSTA_TYPE_CONFIGS[typeKey];
   if (!tc) throw new Error(`Unknown Posta label type: ${typeKey}`);
 
@@ -510,7 +510,7 @@ async function createPostaLabels(orders, productMap, typeKey) {
       const weightKg = parseWeightKg(order.shipping_weight) || tc.weightKg();
       const customsDecl = buildCustomsDeclaration(parsed.CountryIsoCode, productText, weightKg, tc.customsValueEur(), tc.customsCategory);
 
-      const previous=await operations.acquire(order.id,'posta:'+typeKey);if(previous)return previous;acquired=true;
+      const previous=await operations.acquire(order.id,'posta:'+typeKey,replacements[order.id]);if(previous)return previous;acquired=true;
       const sheetData = await postaFetch('put', '/sheets', {
         sheet: {
           parcel_category: tc.parcelCategory(), sender,
@@ -548,7 +548,7 @@ async function createPostaLabels(orders, productMap, typeKey) {
       await postaFetch('post', `/sheets/${encodeURIComponent(sheetId)}/register`, {});
 
       const postaTrackingUrl = trackingNumber ? `https://tandt.posta.sk/en/items/${encodeURIComponent(trackingNumber)}` : '';
-      const stamp = dateStamp();
+      const stamp = dateStamp() + '_' + crypto.randomUUID();
       const fileName = `${tc.filePrefix}_${order.id}_${stamp}.pdf`;
       const labelUrl = await saveLabelFile(fileName, pdfBytes);
       const outcome={downloads:[{pdfBase64:pdfBytes.toString('base64'),fileName}],results:[{orderId:order.id,externalOrderId:String(order.external_order_id||''),success:true,trackingNumber}]};
@@ -569,6 +569,6 @@ async function guarded(orders,create){
  for(const order of orders){try{const result=await create([order]);combined.downloads.push(...result.downloads);combined.results.push(...result.results);}catch(error){combined.results.push({orderId:order.id,externalOrderId:String(order.external_order_id||''),success:false,error:error.message});}}
  return combined;
 }
-const printGlsLabels=(orders,map)=>guarded(orders,list=>createGlsLabels(list,map));
-const printPostaLabels=(orders,map,type)=>guarded(orders,list=>createPostaLabels(list,map,type));
+const printGlsLabels=(orders,map,replacements={})=>guarded(orders,list=>createGlsLabels(list,map,replacements));
+const printPostaLabels=(orders,map,type,replacements={})=>guarded(orders,list=>createPostaLabels(list,map,type,replacements));
 module.exports = { printGlsLabels, printPostaLabels, getProductMap, getOrdersByIds };

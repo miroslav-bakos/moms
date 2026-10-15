@@ -1268,5 +1268,7 @@
   "Release schedule unavailable.": "Termín uvoľnenia nie je dostupný.",
   "Some held transactions have no upcoming date. The displayed release may be incomplete.": "Niektoré blokované transakcie nemajú budúci termín. Zobrazené uvoľnenie môže byť neúplné.",
   "Planned release of held funds, not a bank payout. Dates use UTC.": "Plánované uvoľnenie blokovaných peňazí, nie výplata na bankový účet. Dátumy sú v UTC.",
-  "Based on Amazon transactions posted in the last 180 days.": "Podľa transakcií zaúčtovaných Amazonom za posledných 180 dní."
+  "Based on Amazon transactions posted in the last 180 days.": "Podľa transakcií zaúčtovaných Amazonom za posledných 180 dní.",
+  "Some selected orders already have a shipping label. Replace the saved labels with newly generated labels? This creates new shipments and does not cancel the original shipments with the carrier.": "Niektoré vybrané objednávky už majú expedičný štítok. Prepísať pôvodné štítky novými? Vytvoria sa nové zásielky. Pôvodné zásielky sa u dopravcu automaticky nezrušia.",
+  "The saved label has changed. Reload the orders and confirm replacement again.": "Uložený štítok sa zmenil. Obnovte objednávky a znova potvrďte prepísanie."
 }
