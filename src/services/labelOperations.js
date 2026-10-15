@@ -1,7 +1,23 @@
 'use strict';
 const {query,withClient}=require('../db');
 function uncertain(){const error=new Error('A label request may already exist for this order. Check the carrier portal and contact support before creating another shipment.');error.statusCode=409;return error;}
-async function acquire(orderId,carrier){
+function changed(){const error=new Error('The saved label has changed. Reload the orders and confirm replacement again.');error.statusCode=409;return error;}
+async function replace(orderId,carrier,expectedLabelUrl){
+ return withClient(async client=>{await client.query('BEGIN');try{
+  const order=(await client.query('SELECT label_created,label_url,tracking_code,tracking_url FROM orders WHERE id=$1 FOR UPDATE',[orderId])).rows[0];
+  const row=(await client.query('SELECT * FROM label_operations WHERE order_id=$1 FOR UPDATE',[orderId])).rows[0];
+  // Never reset an in-flight, prepared or ambiguous carrier request.
+  if(row && row.state!=='completed')throw uncertain();
+  if(!order || !(order.label_created || order.label_url) || (order.label_url || '')!==expectedLabelUrl)throw changed();
+  const {history=[],...refs}=row?.provider_refs || {};
+  const previous={carrier:row?.carrier || null,labelUrl:order.label_url,trackingNumber:order.tracking_code,trackingUrl:order.tracking_url,providerRefs:refs};
+  const providerRefs=JSON.stringify({history:[...history,previous]});
+  await client.query("INSERT INTO label_operations(order_id,carrier,state,provider_refs) VALUES($1,$2,'started',$3::jsonb) ON CONFLICT(order_id) DO UPDATE SET carrier=$2,state='started',provider_refs=$3::jsonb,outcome=NULL,updated_at=now()",[orderId,carrier,providerRefs]);
+  await client.query('COMMIT');return null;
+ }catch(error){await client.query('ROLLBACK');throw error;}});
+}
+async function acquire(orderId,carrier,expectedLabelUrl){
+ if(typeof expectedLabelUrl==='string')return replace(orderId,carrier,expectedLabelUrl);
  const inserted=await query("INSERT INTO label_operations(order_id,carrier,state) SELECT id,$2,'started' FROM orders WHERE id=$1 AND NOT label_created ON CONFLICT DO NOTHING RETURNING order_id",[orderId,carrier]);
  if(inserted.rowCount)return null;
  const row=(await query('SELECT * FROM label_operations WHERE order_id=$1',[orderId])).rows[0];

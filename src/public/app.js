@@ -2988,8 +2988,14 @@ async function saveShippingWeight(id, value) {
 
 async function printLabels(buttonId, path, body) {
   const n = body.orderIds ? body.orderIds.length : 0;
+  const selected = new Set((body.orderIds || []).map(Number));
+  const existing = [...state.openOrders, ...state.archiveOrders, ...state.pinnedOrders, ...state.boardArchiveOrders]
+    .filter(order => selected.has(Number(order.id)) && (order.label_created || order.label_url));
+  const replaceLabels = Object.fromEntries(existing.map(order => [order.id, order.label_url || '']));
+  if (existing.length && !confirm('Some selected orders already have a shipping label. Replace the saved labels with newly generated labels? This creates new shipments and does not cancel the original shipments with the carrier.')) return;
+  body = { ...body, replaceLabels };
   const labelType = path.includes('gls') ? 'GLS Courier' : body.type === 'registered_letter' ? 'Letter' : 'Parcel';
-  if (!confirm(`Generate ${labelType} label${n !== 1 ? 's' : ''} for ${n} order${n !== 1 ? 's' : ''}?`)) return;
+  if (!existing.length && !confirm(`Generate ${labelType} label${n !== 1 ? 's' : ''} for ${n} order${n !== 1 ? 's' : ''}?`)) return;
   const button = typeof buttonId === 'string' ? document.getElementById(buttonId) : buttonId;
   const originalText = button.textContent;
   button.disabled = true;

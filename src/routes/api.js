@@ -792,7 +792,7 @@ router.post('/labels/gls', async (req, res, next) => {
     const ids = (req.body.orderIds || []).map(Number).filter(Boolean);
     if (!ids.length) return res.status(400).json({ error: 'orderIds required' });
     const [orders, productMap] = await Promise.all([getOrdersByIds(ids), getProductMap()]);
-    res.json(await printGlsLabels(orders, productMap));
+    res.json(await printGlsLabels(orders, productMap, req.body.replaceLabels || {}));
   } catch (error) {
     next(error);
   }
@@ -805,7 +805,7 @@ router.post('/labels/posta', async (req, res, next) => {
     if (!ids.length) return res.status(400).json({ error: 'orderIds required' });
     if (!['registered_letter', 'parcel'].includes(type)) return res.status(400).json({ error: 'Invalid type' });
     const [orders, productMap] = await Promise.all([getOrdersByIds(ids), getProductMap()]);
-    res.json(await printPostaLabels(orders, productMap, type));
+    res.json(await printPostaLabels(orders, productMap, type, req.body.replaceLabels || {}));
   } catch (error) {
     next(error);
   }
