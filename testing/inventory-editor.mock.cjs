@@ -10,7 +10,7 @@ const server=http.createServer((req,res)=>{
 });
 (async()=>{
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
- const browser=await chromium.launch({headless:true,executablePath:process.env.MOMS_CHROMIUM_PATH}),page=await browser.newPage({viewport:{width:1500,height:950},serviceWorkers:'block'});
+ const browser=await chromium.launch({headless:true,executablePath:process.env.MOMS_CHROMIUM_PATH}),page=await browser.newPage({viewport:{width:1500,height:950},hasTouch:true,serviceWorkers:'block'});
  await page.addInitScript(()=>localStorage.setItem('mobile-connect-seen','true'));
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  const model={materials:[],products:[],rules:[],shopping:[],manufacturers:[],unmapped:[],movements:[]};let counter=1,failShortages=false,failExport=false;const exportRequests=[],receiptRequests=[];let failReceipt=false,failInventorySave=false,holdInventorySave=null;
@@ -45,6 +45,10 @@ const server=http.createServer((req,res)=>{
    if(route.request().method()==='POST') {
     const kind=url.pathname.split('/')[3],body=route.request().postDataJSON(),id='00000000-0000-4000-8000-'+String(counter++).padStart(12,'0');
     (kind==='skus'?model.rules:model[kind]).push({...body,id,required:0,after_queue:Number(body.stock || 0)});data={id};
+   } else if(route.request().method()==='PATCH') {
+    const [, , , kind,id]=url.pathname.split('/'),body=route.request().postDataJSON();
+    const item=(kind==='skus'?model.rules:model[kind]).find(item=>item.id===id);
+    assert(item);Object.assign(item,body);data={id};
    } else data=model;
   } else if(url.pathname==='/api/orders') data=url.searchParams.get('paginate')==='true'?{orders:[],total:0}:[];
   else if(url.pathname==='/api/config') data={channels:{},shipping:{}};
@@ -58,10 +62,10 @@ const server=http.createServer((req,res)=>{
  await page.locator('[data-inventory-add="skus"]').click();await page.locator('#inventoryName').fill('5setorange + holder');
  await page.locator('#inventoryAddRecipeLine').click();await page.locator('[data-inventory-reference="0"]').fill('Munari <new>');
  await page.locator('[data-inventory-quantity="0"]').fill('2');
- await page.locator('[data-inventory-create-reference="0"]').click();
+ await page.locator('#saveInventoryItem').click();
  assert.equal(await page.locator('#inventoryName').inputValue(),'Munari <new>');
  await page.locator('#inventoryAddRecipeLine').click();await page.locator('[data-inventory-reference="0"]').fill('Paper <new>');
- await page.locator('[data-inventory-create-reference="0"]').click();
+ await page.locator('#saveInventoryItem').click();
  await page.locator('#inventoryUnit').fill('A4');await page.locator('#inventoryStock').fill('10');
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAIAAAAC64paAAAAK0lEQVR4nGNkaGAgGzCRr5VhVDOpgIlkHUhgVDOJgIlUDchgVDOJgKIAAwDFMgCoOrIAcgAAAABJRU5ErkJggg==','base64');
  await page.locator('#inventoryImageFile').setInputFiles({name:'image.png',mimeType:'image/png',buffer:png});
@@ -95,12 +99,33 @@ const server=http.createServer((req,res)=>{
    await page.locator('[data-inventory-create-reference="0"]').click();
    await page.locator('#cancelInventoryItem').click();
    assert.equal(await page.locator('#inventoryName').inputValue(),'Munari <new>');
-   await page.locator('#saveInventoryItem').click();assert(await page.locator('#inventoryFormMessage').textContent());
+   await page.locator('#saveInventoryItem').click();assert.equal(await page.locator('#inventoryName').inputValue(),'Unsaved material');
+   assert(await page.locator('#inventoryNestedHelp').isVisible());
    await page.keyboard.press('Escape');
+   assert.equal(await page.locator('#inventoryName').inputValue(),'Munari <new>');
+   await page.locator('#cancelInventoryItem').click();
    assert(await page.locator('#inventoryDialog .unsaved-order-notice').isVisible());
    await page.locator('#inventoryDialog [data-discard-changes]').click();
    if(process.env.MOMS_UI_SCREENSHOTS && language==='sk')await page.screenshot({path:`${process.env.MOMS_UI_SCREENSHOTS}-${width}.png`,fullPage:true});
   }
+ }
+ // Edit persisted recipes through the real Save button in both layouts/languages.
+ for(const language of ['en','sk']) for(const width of [1500,390]) {
+  await page.setViewportSize({width,height:844});await page.evaluate(lang=>window.i18n.setLanguage(lang),language);
+  await page.locator('[data-inventory-tab="products"]').click();
+  await page.locator('[data-inventory-edit="products"]').click();
+  await page.locator('#inventoryName').fill('Edited <product>');
+  await page.locator('#inventoryCost_labour_cost').fill('1,25');
+  await page.locator('[data-inventory-quantity="0"]').fill('0.125');
+  if(width===390) {await page.locator('#saveInventoryItem').scrollIntoViewIfNeeded();await page.locator('#saveInventoryItem').tap();}
+  else await page.locator('#saveInventoryItem').click();
+  await page.locator('#inventoryDialog').waitFor({state:'hidden',timeout:5000});
+  assert.equal(model.products[0].name,'Edited <product>');
+  assert.equal(model.products[0].recipe[0].quantity,'0.125');
+  await page.locator('[data-inventory-edit="products"]').click();
+  assert.equal(await page.locator('#inventoryName').inputValue(),'Edited <product>');
+  await page.locator('#cancelInventoryItem').click();
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  }
  await page.evaluate(()=>{state.currentPrepBatch={id:1,name:'Fixture',orders:[],production:window.inventoryState};renderBatchView();});
  assert.equal(await page.locator('#batchContent .inventory-item-image').count(),2);
@@ -255,6 +280,46 @@ const server=http.createServer((req,res)=>{
  assert.equal(await page.locator('#inventoryName').inputValue(),'Failed save fixture');assert(await page.locator('#inventoryFormMessage').textContent());
  await page.locator('#cancelInventoryItem').click();assert(await page.locator('#inventoryDialog .unsaved-order-notice').isVisible());
  await page.locator('#inventoryDialog [data-discard-changes]').click();
+ // Saving typed, unknown material names guides creation without losing the product draft.
+ for(const language of ['en','sk']) for(const width of [1500,390]) {
+  await page.setViewportSize({width,height:844});await page.evaluate(lang=>window.i18n.setLanguage(lang),language);
+  await page.locator('[data-inventory-tab="products"]').click();
+  await page.locator('[data-inventory-add="products"]').click();
+  const name=`New <product> ${language} ${width}`,material=`New <material> ${language} ${width}`;
+  await page.locator('#inventoryName').fill(name);
+  await page.locator('#inventoryAddRecipeLine').click();
+  await page.locator('[data-inventory-reference="0"]').fill(material);
+  await page.locator('[data-inventory-quantity="0"]').fill('0.25');
+  await page.locator('#inventoryCost_labour_cost').fill('1,25');
+  await page.locator('#inventoryAddRecipeLine').click();
+  await page.locator('[data-inventory-reference="1"]').fill(material+' second');
+  await page.locator('[data-inventory-quantity="1"]').fill('2');
+  const save=async()=>{const button=page.locator('#saveInventoryItem');if(width===390){await button.scrollIntoViewIfNeeded();await button.tap();}else await button.click();};
+  await save();
+  assert.equal(await page.locator('#inventoryName').inputValue(),material);
+  assert(await page.locator('#inventoryNestedHelp').isVisible());
+  assert.equal(await page.locator('#inventoryDialog').evaluate(dialog=>dialog.scrollTop),0);
+  if(process.env.MOMS_UI_SCREENSHOTS)await page.screenshot({path:`${process.env.MOMS_UI_SCREENSHOTS}-guided-${language}-${width}.png`});
+  assert.equal(await page.locator('#inventoryNestedHelp').textContent(),language==='sk'?'Uložte túto položku a vrátite sa k receptúre. Rozpracované zmeny zostanú zachované.':'Save this item to return to the recipe. Your unfinished changes are kept.');
+  // Cancel and retry: no partial product or material is created.
+  const count=model.products.length,materialCount=model.materials.length;
+  await page.locator('#cancelInventoryItem').click();assert.equal(model.materials.length,materialCount);
+  assert.equal(await page.locator('#inventoryName').inputValue(),name);
+  await save();await page.locator('#inventoryUnit').fill('m');
+  await save();await page.waitForFunction(()=>inventoryEditorDraft.kind==='products' && !inventoryEditorBusy);
+  assert.equal(model.products.length,count);assert.equal(await page.locator('#inventoryCost_labour_cost').inputValue(),'1,25');
+  assert.equal(await page.locator('#inventoryName').inputValue(),name);
+  assert.equal(await page.locator('[data-inventory-reference="0"]').inputValue(),material);
+  assert.equal(await page.locator('[data-inventory-quantity="0"]').inputValue(),'0.25');
+  await save();assert.equal(await page.locator('#inventoryName').inputValue(),material+' second');
+  await page.locator('#inventoryUnit').fill('pcs');await save();
+  await page.waitForFunction(()=>inventoryEditorDraft.kind==='products' && !inventoryEditorBusy);
+  await save();await page.locator('#inventoryDialog').waitFor({state:'hidden',timeout:5000});
+  const stored=model.products.find(item=>item.name===name),child=model.materials.find(item=>item.name===material);
+  assert.equal(stored.recipe[0].material_id,child.id);assert.equal(stored.recipe[0].quantity,'0.25');
+  assert.equal(stored.recipe[1].material_id,model.materials.find(item=>item.name===material+' second').id);assert.equal(stored.recipe[1].quantity,'2');
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ }
  if(process.env.MOMS_UI_SCREENSHOTS) for(const theme of ['light','dark']) for(const width of [1500,390]) for(const kind of ['materials','products']) {
   await page.setViewportSize({width,height:950});
   await page.evaluate(({theme,kind})=>{document.documentElement.dataset.theme=theme;window.i18n.setLanguage('sk');openInventoryEditor(kind,window.inventoryState[kind][0].id);},{theme,kind});
