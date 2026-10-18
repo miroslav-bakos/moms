@@ -135,23 +135,28 @@ function renderInventoryLines() {
     line.reference_name=input.value;
     line[field]=options.find(item=>item.name.trim().toLocaleLowerCase()===input.value.trim().toLocaleLowerCase())?.id;
   }));
-  document.querySelectorAll('[data-inventory-create-reference]').forEach(button=>button.addEventListener('click',()=>{
-    const index=Number(button.dataset.inventoryCreateReference);
-    const existing=options.find(item=>item.name.trim().toLocaleLowerCase()===(draft.lines[index].reference_name || '').trim().toLocaleLowerCase());
-    if(existing) {draft.lines[index][field]=existing.id;delete draft.lines[index].reference_name;renderInventoryLines();return;}
-    inventoryEditorParents.push({draft,costFields:[...document.querySelectorAll('#inventoryEditor [data-cost-field]')].map(input=>[input.id,input.value]),name:document.getElementById('inventoryName').value,index,dirty:inventoryEditorDirty()});
-    openInventoryEditor(products?'products':'materials',undefined,true);
-    document.getElementById('inventoryName').value=draft.lines[index].reference_name || '';
-    inventoryEditorDraft.initialSnapshot=inventoryEditorSnapshot();
-    document.getElementById('inventoryName').focus();
-  }));
+  document.querySelectorAll('[data-inventory-create-reference]').forEach(button=>button.addEventListener('click',()=>openInventoryReference(Number(button.dataset.inventoryCreateReference))));
   document.querySelectorAll('[data-inventory-quantity]').forEach(input=>input.addEventListener('input',()=>{draft.lines[Number(input.dataset.inventoryQuantity)].quantity=input.value;}));
   document.querySelectorAll('[data-inventory-remove-line]').forEach(button=>button.addEventListener('click',()=>{draft.lines.splice(Number(button.dataset.inventoryRemoveLine),1);renderInventoryLines();}));
   window.i18n?.apply();
 }
+function openInventoryReference(index) {
+  const draft=inventoryEditorDraft,products=draft.kind==='skus';
+  const options=products?window.inventoryState.products:window.inventoryState.materials;
+  const field=products?'product_id':'material_id';
+  const existing=options.find(item=>item.name.trim().toLocaleLowerCase()===(draft.lines[index].reference_name || '').trim().toLocaleLowerCase());
+  if(existing) {draft.lines[index][field]=existing.id;delete draft.lines[index].reference_name;renderInventoryLines();return;}
+  inventoryEditorParents.push({draft,costFields:[...document.querySelectorAll('#inventoryEditor [data-cost-field]')].map(input=>[input.id,input.value]),name:document.getElementById('inventoryName').value,index,dirty:inventoryEditorDirty()});
+  openInventoryEditor(products?'products':'materials',undefined,true);
+  document.getElementById('inventoryName').value=draft.lines[index].reference_name || '';
+  inventoryEditorDraft.initialSnapshot=inventoryEditorSnapshot();
+  document.getElementById(products?'inventoryName':'inventoryUnit').focus({preventScroll:true});
+  document.getElementById('inventoryDialog').scrollTop=0;
+}
 function openInventoryEditor(kind,id,nested=false) {
   inventoryUnsavedNotice.hidden=true;
   if(!nested) inventoryEditorParents.length=0;
+  document.getElementById('inventoryNestedHelp').hidden=!inventoryEditorParents.length;
   const model=window.inventoryState;
   const list=kind==='materials'?model.materials:kind==='products'?model.products:model.rules;
   const item=list.find(item=>item.id===id);
@@ -206,14 +211,18 @@ function cancelInventoryEditor() {
 document.getElementById('cancelInventoryItem').addEventListener('click',cancelInventoryEditor);
 document.getElementById('inventoryDialog').addEventListener('cancel',event=>{event.preventDefault();cancelInventoryEditor();});
 document.getElementById('inventoryForm').addEventListener('submit',async event=>{
-  event.preventDefault(); if(inventoryEditorBusy)return;const draft=inventoryEditorDraft;setInventoryEditorBusy(true);
+  event.preventDefault(); if(inventoryEditorBusy)return;const draft=inventoryEditorDraft;
+  if(draft.kind!=='materials') {
+    const index=draft.lines.findIndex(line=>!line[draft.kind==='skus'?'product_id':'material_id']);
+    if(index!==-1) {openInventoryReference(index);return;}
+  }
+  setInventoryEditorBusy(true);
   inventoryUnsavedNotice.hidden=true;
   const name=document.getElementById('inventoryName').value;
   const body=draft.kind==='materials'?{name,manufacturer:document.getElementById('inventoryManufacturer').value,purchase_url:document.getElementById('inventoryPurchaseUrl').value,unit:document.getElementById('inventoryUnit').value,stock:document.getElementById('inventoryStock').value,...(draft.item?{expected_stock:draft.item.stock}:{})}:draft.kind==='products'?{name,recipe:draft.lines}:{sku:name,components:draft.lines};
   if(draft.kind!=='skus'){body.cost_currency=document.getElementById('inventoryCostCurrency').value;document.querySelectorAll('#inventoryEditor [id^="inventoryCost_"]').forEach(input=>body[input.id.slice('inventoryCost_'.length)]=input.value);}
   if(Object.hasOwn(draft,'image')) body.image=draft.image;
   try {
-    if(draft.kind!=='materials' && draft.lines.some(line=>!line[draft.kind==='skus'?'product_id':'material_id'])) throw new Error(window.i18n.t('Choose an existing item or create a new one first.'));
     const saved=await api(`/api/inventory/${draft.kind}${draft.id?'/'+draft.id:''}`,{method:draft.id?'PATCH':'POST',body:JSON.stringify(body)});draft.id=saved.id;draft.item={...draft.item,...body,id:saved.id};draft.initialSnapshot=inventoryEditorSnapshot();await loadInventory();if(!restoreInventoryParent(saved.id)) document.getElementById('inventoryDialog').close();await refreshInventoryViews().catch(error=>{document.getElementById('inventoryMessage').textContent=error.message;});}
   catch(error){document.getElementById('inventoryFormMessage').textContent=error.message;}
   finally{setInventoryEditorBusy(false);}
