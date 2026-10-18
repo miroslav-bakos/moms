@@ -3,7 +3,11 @@ const assert=require('node:assert/strict');
 module.exports=async(root,db)=>{
  const {config}=require('../src/config');config.basicAuthUser='release-fixture';config.basicAuthPassword='release-fixture-password';
  const sessions=require('../src/services/authSessions');
- const token=await sessions.issue();assert(await sessions.authenticate(token));await sessions.revoke(token);assert(!await sessions.authenticate(token));
+ const token=await sessions.issue();assert(await sessions.authenticate(token));
+ const lifetime=Number((await db.query('SELECT extract(epoch FROM expires_at-now()) AS seconds FROM mobile_devices WHERE token_hash=$1',[sessions.hash(token)])).rows[0].seconds);
+ assert(lifetime>31*86400-60 && lifetime<=31*86400,'Server session lasts 31 days');
+ await db.query("UPDATE mobile_devices SET expires_at=expires_at-interval '30 days' WHERE token_hash=$1",[sessions.hash(token)]);
+ assert(await sessions.authenticate(token),'Login remains valid after 30 days');await sessions.revoke(token);assert(!await sessions.authenticate(token));
  const expired=await sessions.issue();await db.query("UPDATE mobile_devices SET expires_at=now()-interval '1 second' WHERE token_hash=$1",[sessions.hash(expired)]);assert(!await sessions.authenticate(expired));
  const changed=await sessions.issue();config.basicAuthPassword+='changed';assert(!await sessions.authenticate(changed));
  const channel=require('../src/services/channelState');await channel.getChannelState('sashe');

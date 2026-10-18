@@ -30,7 +30,8 @@ const app=express();app.use(express.json());app.use('/login',require('../src/rou
    const context=await browser.newContext({viewport:{width,height:900}}),page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
    await page.goto(base+'/login?lang='+lang);await page.locator('[name=username]').fill('owner');await page.locator('[name=password]').fill('fixture-password');await page.locator('[name=confirm]').fill('fixture-password');await page.locator('button').click();await page.waitForLoadState();if(!(await page.locator('h1').filter({hasText:'Private app'}).count()))throw new Error('Fixture login failed: '+await page.locator('body').innerText());
    assert(saved.values.APP_BASIC_AUTH_PASSWORD.startsWith('scrypt:'));assert(!saved.values.APP_BASIC_AUTH_PASSWORD.includes('fixture-password'));
-   const cookie=(await context.cookies()).find(c=>c.name==='loa_session');assert(cookie.httpOnly);assert(cookie.expires*1000-Date.now()<13*3600000);
+   const cookie=(await context.cookies()).find(c=>c.name==='loa_session');assert(cookie.httpOnly);const remaining=cookie.expires*1000-Date.now();assert(remaining>31*86400000-60000 && remaining<=31*86400000);assert.equal(cookie.sameSite,'Lax');
+   const restored=await browser.newContext({storageState:await context.storageState()});assert.equal((await restored.request.get(base+'/api/orders')).status(),200,'Persistent login survives a fresh browser context');await restored.close();
    const csrf=await context.request.post(base+'/login/logout',{headers:{Origin:'https://attacker.invalid'}});assert.equal(csrf.status(),403);assert.equal((await context.request.get(base+'/api/orders')).status(),200);
    const start=await context.request.get(base+'/auth/etsy/start',{maxRedirects:0});assert.equal(start.status(),302);assert(states.size>0);const state=[...states.values()].at(-1);assert(state.owner&&tokens.has(state.session));
    await context.request.post(base+'/login/logout');const rejected=await context.request.get(base+'/api/orders');assert.equal(rejected.status(),401);assert.equal((await rejected.json()).error,'Authentication required');assert(!tokens.has(state.session));
@@ -39,6 +40,7 @@ const app=express();app.use(express.json());app.use('/login',require('../src/rou
    config.etsy.shopId='';const connect=await context.request.get(base+'/auth/etsy/start',{maxRedirects:0});const newState=new URL(connect.headers().location).searchParams.get('state');const callback=await context.request.get(base+'/auth/etsy/callback?state='+newState+'&code=fixture',{maxRedirects:0});assert.equal(callback.status(),302);assert.equal(config.etsy.shopId,'456');assert.equal(saved.values.ETSY_SHOP_ID,'456');
    await page.goto(base+'/login?lang='+lang);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await context.close();
   }
+  const basicLogin=await fetch(base+'/api/orders',{headers:{Authorization:'Basic '+Buffer.from('owner:fixture-password').toString('base64')}});assert.equal(basicLogin.status,200);assert(basicLogin.headers.get('set-cookie').includes('Max-Age=2678400'));
   assert.equal((await fetch(base+'/auth/etsy/start',{redirect:'manual'})).status,401);
   assert.equal((await fetch(base+'/auth/amazon/login?amazon_callback_uri=https://sellercentral.evil.invalid/apps/authorize/confirm/1',{redirect:'manual'})).status,401);
   console.log('PASS owner bootstrap, EN/SK desktop/mobile login, hashing, finite sessions, logout, cached Basic refusal, CSRF and authenticated OAuth initiation.');

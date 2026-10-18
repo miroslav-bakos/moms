@@ -30,7 +30,7 @@ router.post('/',sameOrigin,async(req,res)=>{
       config.basicAuthUser=username.trim();config.basicAuthPassword=hashed;
     } else if(!sessions.equal(req.body.username,config.basicAuthUser)||!sessions.passwordMatches(req.body.password))return page(req,res,t('Incorrect name or password.','Nesprávne meno alebo heslo.'),401);
     const token=await sessions.issue();attempts.delete(ip);res.clearCookie('moms_signed_out',{path:'/'});
-    res.cookie('loa_session',token,{httpOnly:true,secure:Boolean(req.secure),sameSite:'lax',maxAge:12*60*60*1000,path:'/'});res.redirect('/');
+    res.cookie('loa_session',token,{httpOnly:true,secure:Boolean(req.secure),sameSite:'lax',maxAge:sessions.SESSION_MAX_AGE_SECONDS*1000,path:'/'});res.redirect('/');
   } catch (_) {page(req,res,t('Sign-in is temporarily unavailable. Please try again.','Prihlásenie je dočasne nedostupné. Skúste znova.'),503);}
 });
 router.post('/logout',sameOrigin,async(req,res)=>{
