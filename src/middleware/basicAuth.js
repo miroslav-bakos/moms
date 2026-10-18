@@ -50,7 +50,7 @@ async function basicAuth(req, res, next) {
       try { req.authSession = await sessions.issue(); } catch (_) { return reject(req,res,503,'Authentication temporarily unavailable'); }
       res.setHeader(
         'Set-Cookie',
-        `${COOKIE_NAME}=${req.authSession}; HttpOnly;${req.secure ? ' Secure;' : ''} SameSite=Lax; Max-Age=43200; Path=/`
+        `${COOKIE_NAME}=${req.authSession}; HttpOnly;${req.secure ? ' Secure;' : ''} SameSite=Lax; Max-Age=${sessions.SESSION_MAX_AGE_SECONDS}; Path=/`
       );
       return next();
     }

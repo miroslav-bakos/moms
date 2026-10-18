@@ -6,7 +6,7 @@ function stub(file,exports){const filename=require.resolve(file);require.cache[f
 const token='a'.repeat(64),device='b'.repeat(64);let used=false;
 stub('../src/config',{config:{basicAuthUser:'fixture',basicAuthPassword:'fixture-password',appSecret:'fixture-secret-for-tests-only'}});
 stub('../src/services/mobilePairing',{redeem:async value=>{if(used||value!==token)return null;used=true;return device;},authenticate:async value=>value===device});
-stub('../src/services/authSessions',{equal:(a,b)=>a===b,passwordMatches:value=>value==='fixture-password',issue:async()=> 'c'.repeat(64),authenticate:async()=>false});
+stub('../src/services/authSessions',{SESSION_MAX_AGE_SECONDS:2678400,equal:(a,b)=>a===b,passwordMatches:value=>value==='fixture-password',issue:async()=> 'c'.repeat(64),authenticate:async()=>false});
 const app=require('express')();app.use(require('express').json());app.get('/health',(req,res)=>res.json({ok:true}));app.use('/pair',require('../src/routes/pairing'));app.use(require('../src/middleware/basicAuth').basicAuth);app.get('/',(req,res)=>res.send('fixture'));
 const request=(server,options={})=>new Promise((resolve,reject)=>{
  const tls=server===secure,client=tls?https:http;
