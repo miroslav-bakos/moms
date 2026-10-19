@@ -51,7 +51,7 @@ async function send(id){
   const requestKey=`${hex.slice(0,8)}-${hex.slice(8,12)}-4${hex.slice(13,16)}-8${hex.slice(17,20)}-${hex.slice(20)}`;
   shipment=await fulfillment.ship(Number(id),{request_key:requestKey,lines:view.lines.map(l=>({line_id:Number(l.id),quantity:l.quantity})),tracking_code:order.tracking_code,tracking_url:order.tracking_url||''});
  }
- const carrier=shipment.marketplace_carrier||(order.channel==='amazon'?'other':/gls-group\.eu/i.test(shipment.tracking_url)?'gls':order.channel==='etsy'&&/tandt\.posta\.sk/i.test(shipment.tracking_url)?'slovenska-posta':'other');
+ const carrier=shipment.marketplace_carrier||(/gls-group\.eu/i.test(shipment.tracking_url)?'gls':['etsy','amazon'].includes(order.channel)&&/tandt\.posta\.sk/i.test(shipment.tracking_url)?'slovenska-posta':'other');
  return marketplace.dispatch(id,shipment.id,carrier);
 }
 async function withResult(order){

@@ -9,6 +9,7 @@
  function message(orders){
   const results=orders.filter(o=>o.dispatch_result);
   if(!results.length)return 'Status saved';
+  if(results.some(o=>o.dispatch_result.message==='Reconnect Etsy and approve shipping updates before confirming dispatch.'))return 'Reconnect Etsy and approve shipping updates before confirming dispatch.';
   if(results.some(o=>o.dispatch_result.state!=='confirmed'))return 'Status saved. Marketplace dispatch is not confirmed. Review shipment details.';
   return 'Status saved. Marketplace dispatch confirmed.';
  }

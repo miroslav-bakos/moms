@@ -1,4 +1,5 @@
 {
+  "Reconnect Etsy and approve shipping updates before confirming dispatch.": "Znovu pripojte Etsy a povoľte aktualizácie dopravy pred potvrdením odoslania.",
   "Open order value": "Hodnota otvorených objednávok",
   "No priced open orders": "Žiadne otvorené objednávky s cenou",
   "Orders without price": "Objednávky bez ceny",
@@ -1088,7 +1089,7 @@
   "Check Shopify tracking": "Overiť tracking na Shopify",
   "Send dispatch to Amazon": "Odoslať expedíciu na Amazon",
   "Send dispatch to Shopify": "Odoslať expedíciu na Shopify",
-  "Send this complete shipment and tracking to Amazon as Other, National Post, Parcel?": "Odoslať túto kompletnú zásielku a tracking na Amazon ako Other, National Post, Parcel?",
+  "Send this complete shipment and tracking to Amazon?": "Odoslať túto kompletnú zásielku a tracking na Amazon?",
   "Send this complete shipment and tracking to Shopify? Shopify sends a shipping notification to the buyer.": "Odoslať túto kompletnú zásielku a tracking na Shopify? Shopify odošle kupujúcemu oznámenie o expedícii.",
   "Confirm sending the shipment and tracking to the marketplace.": "Potvrďte odoslanie zásielky a trackingu na marketplace.",
   "Add tracking and use active orders before confirming marketplace dispatch.": "Pred potvrdením expedície doplňte tracking a použite aktívne objednávky.",

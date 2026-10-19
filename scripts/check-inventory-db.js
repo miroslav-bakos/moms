@@ -297,8 +297,8 @@ module.exports=async function checkInventoryDatabase(root, db) {
    if(mode==='timeout')throw Error('Timeout fixture');
    const view=remote.get(attempt.receipt_id);
    if(channel==='amazon'){
-    assert.equal(attempt.request_payload.remote.packageDetail.carrierName,'National Post');assert.equal(attempt.request_payload.remote.packageDetail.shippingMethod,'Parcel');
-    view.packages=[{packageReferenceId:String(attempt.package_reference_id),trackingNumber:attempt.tracking_code,carrier:'National Post',shippingService:'Parcel',packageStatus:{status:'SHIPPED'},packageItems:attempt.request_payload.items.map(i=>({orderItemId:i.id,quantity:i.quantity}))}];view.fulfillment.fulfillmentStatus='SHIPPED';
+    assert.equal(attempt.request_payload.remote.packageDetail.carrierCode,attempt.carrier_name==='gls'?'GLS':'Other');assert.equal(attempt.request_payload.remote.packageDetail.carrierName,attempt.carrier_name==='gls'?undefined:'Slovak Post');assert.equal(attempt.request_payload.remote.packageDetail.shippingMethod,attempt.carrier_name==='gls'?'Business Parcel':'Parcel');
+    view.packages=[{packageReferenceId:String(attempt.package_reference_id),trackingNumber:attempt.tracking_code,carrier:attempt.carrier_name==='gls'?'GLS':'Slovak Post',shippingService:attempt.carrier_name==='gls'?'Business Parcel':'Parcel',packageStatus:{status:'SHIPPED'},packageItems:attempt.request_payload.items.map(i=>({orderItemId:i.id,quantity:i.quantity}))}];view.fulfillment.fulfillmentStatus='SHIPPED';
    }else{
     assert.equal(attempt.request_payload.remote.notifyCustomer,true);
     view.fulfillments=[{status:'SUCCESS',trackingInfo:[{company:attempt.carrier_name==='gls'?'GLS':'Other',number:attempt.tracking_code,url:attempt.request_payload.remote.trackingInfo.url}],fulfillmentLineItems:{nodes:attempt.request_payload.items.map(i=>({quantity:i.quantity,lineItem:{id:'gid://shopify/LineItem/'+i.id}}))}}];
@@ -319,6 +319,13 @@ module.exports=async function checkInventoryDatabase(root, db) {
    const manual=await workflowDispatch.bulk(manualIds,'shipped',false);assert(manual.every(o=>o.shipped));const after=await stock(paper);assert(after<before);
    await workflowDispatch.change(manualIds[0],{workflow_status:'shipped'});assert.equal(await stock(paper),after);
    for(const id of manualIds)await updateOrderFlags(id,{shipped:false,workflow_status:'new'});assert.equal(await stock(paper),before);
+  }
+  if(channel==='amazon')for(const gls of [true,false]){
+   const fixture=await make({noShipment:true});
+   await db.query('UPDATE orders SET tracking_url=$2,label_url=$3 WHERE id=$1',[fixture.orderId,gls?'https://gls-group.eu/track/fixture':'http://tandt.posta.sk/en/items/fixture',gls?'/labels/GLS_Label_fixture.pdf':'/labels/posta.pdf']);
+   const result=await workflowDispatch.change(fixture.orderId,{workflow_status:'shipped',confirm_marketplace_dispatch:true});assert.equal(result.dispatch_result.state,'confirmed');
+   const saved=(await db.query('SELECT * FROM marketplace_dispatches WHERE order_id=$1',[fixture.orderId])).rows[0];assert.equal(saved.carrier_name,gls?'gls':'slovenska-posta');
+   const before=sends;await workflowDispatch.send(fixture.orderId);assert.equal(sends,before);await updateOrderFlags(fixture.orderId,{workflow_status:'ready_for_pickup'});
   }
   const automatic=await make({noShipment:true,legacy:true});
   await db.query('UPDATE orders SET skus_locked=true WHERE id=$1',[automatic.orderId]);
@@ -352,11 +359,11 @@ module.exports=async function checkInventoryDatabase(root, db) {
   mode='read-error';assert.equal((await dispatchService.dispatch(timed.orderId,timed.shipment.id)).state,'uncertain');assert.equal(sends,beforeTimed);
   mode='reject';const rejectedFixture=await make();assert.equal((await dispatchService.dispatch(rejectedFixture.orderId,rejectedFixture.shipment.id)).state,'rejected');const reference=(await db.query('SELECT package_reference_id FROM marketplace_dispatches WHERE order_id=$1',[rejectedFixture.orderId])).rows[0].package_reference_id;mode='ok';assert.equal((await dispatchService.dispatch(rejectedFixture.orderId,rejectedFixture.shipment.id)).state,'confirmed');assert.equal((await db.query('SELECT package_reference_id FROM marketplace_dispatches WHERE order_id=$1',[rejectedFixture.orderId])).rows[0].package_reference_id,reference);
   if(channel==='amazon'){
-   const external=await make();const view=remote.get(external.external);view.fulfillment.fulfillmentStatus='SHIPPED';view.packages=[{packageReferenceId:'987',trackingNumber:external.shipment.tracking_code,carrier:'National Post',shippingService:'Parcel',packageStatus:{status:'SHIPPED'},packageItems:[{orderItemId:'123',quantity:1}]}];const beforeExternal=sends;assert.equal((await dispatchService.dispatch(external.orderId,external.shipment.id)).state,'confirmed');assert.equal(sends,beforeExternal);assert.equal((await db.query('SELECT package_reference_id FROM marketplace_dispatches WHERE order_id=$1',[external.orderId])).rows[0].package_reference_id,'987');await updateOrderFlags(external.orderId,{workflow_status:'ready_for_pickup'});
+   const external=await make();const view=remote.get(external.external);view.fulfillment.fulfillmentStatus='SHIPPED';view.packages=[{packageReferenceId:'987',trackingNumber:external.shipment.tracking_code,carrier:'Slovak Post',shippingService:'Parcel',packageStatus:{status:'SHIPPED'},packageItems:[{orderItemId:'123',quantity:1}]}];const beforeExternal=sends;assert.equal((await dispatchService.dispatch(external.orderId,external.shipment.id)).state,'confirmed');assert.equal(sends,beforeExternal);assert.equal((await db.query('SELECT package_reference_id FROM marketplace_dispatches WHERE order_id=$1',[external.orderId])).rows[0].package_reference_id,'987');await updateOrderFlags(external.orderId,{workflow_status:'ready_for_pickup'});
   }
   const mismatch=await make();if(channel==='amazon')remote.get(mismatch.external).orderItems[0].quantityOrdered=2;else remote.get(mismatch.external).lineItems.nodes[0].quantity=2;const beforeMismatch=sends;assert.equal((await dispatchService.dispatch(mismatch.orderId,mismatch.shipment.id)).state,'rejected');assert.equal(sends,beforeMismatch);
-  if(channel==='amazon')await assert.rejects(()=>dispatchService.dispatch(mismatch.orderId,mismatch.shipment.id,'gls'),e=>e.statusCode===400);
-  else{const gls=await make();assert.equal((await dispatchService.dispatch(gls.orderId,gls.shipment.id,'gls')).state,'confirmed');await updateOrderFlags(gls.orderId,{workflow_status:'ready_for_pickup'});}
+  if(channel==='amazon')assert.equal((await dispatchService.dispatch(mismatch.orderId,mismatch.shipment.id,'gls')).state,'rejected');
+  {const gls=await make();assert.equal((await dispatchService.dispatch(gls.orderId,gls.shipment.id,'gls')).state,'confirmed');await updateOrderFlags(gls.orderId,{workflow_status:'ready_for_pickup'});}
   for(const f of [fixture,lost,timed,rejectedFixture,mismatch])await updateOrderFlags(f.orderId,{workflow_status:'ready_for_pickup'});
  }
  console.log('PASS Amazon/Shopify dispatch DB: persisted payload before send, one concurrent write, lost-response reconciliation, uncertain no-resend/cancel guard, rejected retry stable package ID, quantities, carriers and archive independence');

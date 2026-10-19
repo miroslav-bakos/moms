@@ -141,5 +141,5 @@
   }
   document.getElementById('languageSelect').addEventListener('change', event => setLanguage(event.target.value));
   apply();
-  window.i18n.ready = fetch('/locales/sk.json?v=75').then(response => { if (!response.ok) throw new Error('Language unavailable'); return response.json(); }).then(data => { dictionary = data; reverse = Object.fromEntries(Object.entries(data).map(([en, sk]) => [sk, en])); apply(); }).catch(() => { setLanguage('en'); });
+  window.i18n.ready = fetch('/locales/sk.json?v=76').then(response => { if (!response.ok) throw new Error('Language unavailable'); return response.json(); }).then(data => { dictionary = data; reverse = Object.fromEntries(Object.entries(data).map(([en, sk]) => [sk, en])); apply(); }).catch(() => { setLanguage('en'); });
 })();

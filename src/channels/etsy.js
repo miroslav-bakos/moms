@@ -235,6 +235,10 @@ async function getReceiptShipment(receiptId){
  return etsyJson(`/shops/${config.etsy.shopId}/receipts/${receiptId}?legacy=true`);
 }
 async function sendReceiptShipment(receiptId,trackingCode,carrier='other'){
+ const token=await getToken('etsy');
+ if(token?.scope&&!String(token.scope).split(/\s+/).includes('transactions_w')){
+  const error=new Error('Reconnect Etsy and approve shipping updates before confirming dispatch.');error.httpStatus=403;error.dispatchMessage=error.message;throw error;
+ }
  return etsyJson(`/shops/${config.etsy.shopId}/receipts/${receiptId}/tracking`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_code:trackingCode,carrier_name:carrier,send_bcc:false})});
 }
 module.exports.getReceiptShipment=getReceiptShipment;

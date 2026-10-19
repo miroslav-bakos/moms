@@ -464,6 +464,14 @@ async function getDispatchOrder(orderId){
  if(!result.order)throw new Error('Amazon did not return dispatch details.');
  return result.order;
 }
+function dispatchCarrier(attempt){
+ return attempt.carrier_name==='gls'?{carrierCode:'GLS',shippingMethod:'Business Parcel'}:{carrierCode:'Other',carrierName:'Slovak Post',shippingMethod:'Parcel'};
+}
+function packageCarrierMatches(attempt,p){
+ // Reconcile uncertain writes against their persisted payload, including legacy names.
+ const expected=attempt.request_payload.remote?.packageDetail||dispatchCarrier(attempt);
+ return String(p.carrier||'').toLowerCase()===String(expected.carrierName||expected.carrierCode).toLowerCase()&&p.shippingService===expected.shippingMethod;
+}
 function prepareDispatch(attempt,remote){
  const {sameItems,rejected}=require('./dispatchUtils');
  const local=attempt.request_payload.items;
@@ -471,17 +479,17 @@ function prepareDispatch(attempt,remote){
  const marketplace=remote.salesChannel?.marketplaceId;
  if(!marketplace||!marketplaceIds().includes(marketplace))throw rejected('Amazon marketplace is not configured for this order.');
  if((remote.packages||[]).some(p=>p.packageStatus?.status!=='CANCELLED'))throw rejected('Amazon already has a package. Review tracking before dispatch.');
- return {marketplaceId:marketplace,packageDetail:{packageReferenceId:String(attempt.package_reference_id),carrierCode:'Other',carrierName:'National Post',shippingMethod:'Parcel',trackingNumber:attempt.tracking_code,shipDate:new Date(attempt.request_payload.ship_date).toISOString(),orderItems:local.map(i=>({orderItemId:i.id,quantity:i.quantity}))}};
+ return {marketplaceId:marketplace,packageDetail:{packageReferenceId:String(attempt.package_reference_id),...dispatchCarrier(attempt),trackingNumber:attempt.tracking_code,shipDate:new Date(attempt.request_payload.ship_date).toISOString(),orderItems:local.map(i=>({orderItemId:i.id,quantity:i.quantity}))}};
 }
 function existingDispatchPackage(attempt,remote){
  const {sameItems}=require('./dispatchUtils');const active=(remote.packages||[]).filter(p=>p.packageStatus?.status!=='CANCELLED');
  if(active.length!==1)return null;const p=active[0];
- return /^\d+$/.test(String(p.packageReferenceId))&&BigInt(p.packageReferenceId)>0n&&BigInt(p.packageReferenceId)<=9223372036854775807n&&p.trackingNumber===attempt.tracking_code&&String(p.carrier||'').toLowerCase()==='national post'&&p.shippingService==='Parcel'&&['SHIPPED','IN_TRANSIT','DELIVERED'].includes(p.packageStatus?.status)&&sameItems(attempt.request_payload.items,(p.packageItems||[]).map(i=>({id:i.orderItemId,quantity:i.quantity})))?p:null;
+ return /^\d+$/.test(String(p.packageReferenceId))&&BigInt(p.packageReferenceId)>0n&&BigInt(p.packageReferenceId)<=9223372036854775807n&&p.trackingNumber===attempt.tracking_code&&packageCarrierMatches(attempt,p)&&['SHIPPED','IN_TRANSIT','DELIVERED'].includes(p.packageStatus?.status)&&sameItems(attempt.request_payload.items,(p.packageItems||[]).map(i=>({id:i.orderItemId,quantity:i.quantity})))?p:null;
 }
 module.exports.existingDispatchPackage=existingDispatchPackage;
 function dispatchFound(attempt,remote){
  const {sameItems}=require('./dispatchUtils');
- return (remote.packages||[]).some(p=>String(p.packageReferenceId)===String(attempt.package_reference_id)&&p.trackingNumber===attempt.tracking_code&&String(p.carrier||'').toLowerCase()==='national post'&&p.shippingService==='Parcel'&&['SHIPPED','IN_TRANSIT','DELIVERED'].includes(p.packageStatus?.status)&&sameItems(attempt.request_payload.items,(p.packageItems||[]).map(i=>({id:i.orderItemId,quantity:i.quantity}))));
+ return (remote.packages||[]).some(p=>String(p.packageReferenceId)===String(attempt.package_reference_id)&&p.trackingNumber===attempt.tracking_code&&packageCarrierMatches(attempt,p)&&['SHIPPED','IN_TRANSIT','DELIVERED'].includes(p.packageStatus?.status)&&sameItems(attempt.request_payload.items,(p.packageItems||[]).map(i=>({id:i.orderItemId,quantity:i.quantity}))));
 }
 async function sendDispatch(attempt){
  try{await amazonRequest({method:'POST',path:`/orders/v0/orders/${encode(attempt.receipt_id)}/shipmentConfirmation`,body:attempt.request_payload.remote});}
