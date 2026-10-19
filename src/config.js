@@ -58,7 +58,7 @@ const config = {
     clientId: process.env.ETSY_CLIENT_ID || '',
     clientSecret: process.env.ETSY_CLIENT_SECRET || '',
     shopId: process.env.ETSY_SHOP_ID || '',
-    scopes: list(process.env.ETSY_SCOPES || 'transactions_r transactions_w listings_r listings_w'),
+    scopes: [...new Set([...list(process.env.ETSY_SCOPES || 'transactions_r transactions_w listings_r listings_w'), 'transactions_w'])],
     redirectUri: process.env.ETSY_REDIRECT_URI || `${process.env.APP_BASE_URL || `http://localhost:${port}`}/auth/etsy/callback`,
     tokenUrl: 'https://api.etsy.com/v3/public/oauth/token',
     authorizationUrl: 'https://www.etsy.com/oauth/connect',

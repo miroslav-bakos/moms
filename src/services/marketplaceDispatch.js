@@ -12,11 +12,15 @@ async function dispatch(id,shipmentId,carrier='other'){
   await client.query('BEGIN');try{
    const order=(await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE',[id])).rows[0];
    if(!order||!['etsy','amazon','shopify'].includes(order.channel)||!(order.channel==='amazon'?/^\d{3}-\d{7}-\d{7}$/:/^\d+$/).test(String(order.external_order_id))||order.business_outcome!=='active')fail('Only active Etsy, Amazon and Shopify orders support marketplace dispatch.');
-   if(order.channel==='amazon'&&carrier!=='other')fail('Amazon uses Other, National Post and Parcel.',400);
    const shop=identity(order.channel);
    const shipment=(await client.query('SELECT * FROM order_shipments WHERE order_id=$1 AND id=$2',[id,shipmentId])).rows[0];
    if(!shipment||shipment.canceled_at||!shipment.tracking_code.trim())fail('Add a shipment with tracking before sending to the marketplace.');
    const previous=(await client.query('SELECT * FROM marketplace_dispatches WHERE order_id=$1',[id])).rows[0];
+   if(order.channel==='amazon'){
+    const labelMatches=order.tracking_code===shipment.tracking_code;
+    const gls=/gls-group\.eu/i.test(shipment.tracking_url||'')||(labelMatches&&/GLS/i.test(order.label_url||''));
+    carrier=previous&&previous.state!=='rejected'&&carrier==='other'?previous.carrier_name:gls?'gls':carrier==='gls'?'gls':'slovenska-posta';
+   }
    if(previous&&(previous.shipment_id!==shipmentId||previous.tracking_code!==shipment.tracking_code||previous.shop_id!==shop||previous.channel!==order.channel||previous.receipt_id!==String(order.external_order_id)))fail('The marketplace dispatch identity changed. Review it on the marketplace.');
    if(previous&&previous.carrier_name!==carrier&&previous.state!=='rejected')fail('The marketplace dispatch identity changed. Review it on the marketplace.');
    if(previous?.state==='confirmed'){await client.query('COMMIT');return {...previous,write:false};}
@@ -39,7 +43,7 @@ async function dispatch(id,shipmentId,carrier='other'){
  if(found(receipt,attempt.tracking_code,attempt.carrier_name)){await update('confirmed');return {state:'confirmed'};}
  if(found(receipt,attempt.tracking_code)||!attempt.write)return {state:'uncertain'};
  try{await etsy.sendReceiptShipment(attempt.receipt_id,attempt.tracking_code,attempt.carrier_name);}
- catch(error){if(error.httpStatus>=400&&error.httpStatus<500){await update('rejected');return {state:'rejected'};}return {state:'uncertain'};}
+ catch(error){if(error.httpStatus>=400&&error.httpStatus<500){await update('rejected');return {state:'rejected',...(error.dispatchMessage?{message:error.dispatchMessage}:{})};}return {state:'uncertain'};}
  await update('confirmed');return {state:'confirmed'};
 }
 async function dispatchOther(attempt){
