@@ -395,23 +395,57 @@ async function createGlsLabels(orders, productMap, replacements) {
 
   if (!shipments.length) return { downloads: [], results: failed };
 
-  const previous=await operations.acquire(orders[0].id,'gls',replacements[orders[0].id]);if(previous)return previous;
+  const downloads = new Map();
+  const results = [...failed];
+  const pending = [];
+  const addOutcome = outcome => {
+    for (const download of outcome.downloads) downloads.set(download.fileName, download);
+    results.push(...outcome.results);
+  };
+  for (const shipment of shipments) {
+    try {
+      const previous = await operations.acquire(shipment.orderId, 'gls', replacements[shipment.orderId]);
+      if (previous) addOutcome(previous);
+      else pending.push(shipment);
+    } catch (error) {
+      results.push({ orderId: shipment.orderId, externalOrderId: shipment.externalOrderId, success: false, error: error.message });
+    }
+  }
+  if (!pending.length) return { downloads: [...downloads.values()], results };
+
+  const failure = 'The carrier request did not finish. Check the carrier portal and contact support before retrying.';
+  let pdfBytes, trackingNumbers, fileName, labelUrl;
   try {
-  const { pdfBytes, trackingNumbers } = await callGlsApi(shipments);
-  await operations.checkpoint(orders[0].id,{trackingNumbers});
+    ({ pdfBytes, trackingNumbers } = await callGlsApi(pending));
+    for (const [index, shipment] of pending.entries()) {
+      await operations.checkpoint(shipment.orderId, { trackingNumber: trackingNumbers[index] || '' });
+    }
+    const stamp = dateStamp() + '_' + crypto.randomUUID();
+    fileName = pending.length === 1 ? `GLS_Label_${pending[0].orderId}_${stamp}.pdf` : `GLS_Labels_${stamp}.pdf`;
+    labelUrl = await saveLabelFile(fileName, pdfBytes);
+  } catch (error) {
+    for (const shipment of pending) {
+      await operations.failed(shipment.orderId);
+      results.push({ orderId: shipment.orderId, externalOrderId: shipment.externalOrderId, success: false, error: failure });
+    }
+    return { downloads: [...downloads.values()], results };
+  }
 
-  const stamp = dateStamp() + '_' + crypto.randomUUID();
-  const fileName = shipments.length === 1
-    ? `GLS_Label_${orders[0].id}_${stamp}.pdf`
-    : `GLS_Labels_${stamp}.pdf`;
-  const labelUrl = await saveLabelFile(fileName, pdfBytes);
-
-  const tn=trackingNumbers[0]||'';
-  const trackingUrl=tn?`https://gls-group.eu/SK/sk/sledovanie-zasielok/?match=${encodeURIComponent(tn)}`:'';
-  const outcome={downloads:[{pdfBase64:pdfBytes.toString('base64'),fileName}],results:[{orderId:orders[0].id,externalOrderId:String(orders[0].external_order_id||''),success:true,trackingNumber:tn}]};
-  await operations.prepare(orders[0].id,outcome,tn,trackingUrl,labelUrl);
-  return outcome;
-  } catch(error){await operations.failed(orders[0].id);throw new Error('The carrier request did not finish. Check the carrier portal and contact support before retrying.');}
+  const download = { pdfBase64: pdfBytes.toString('base64'), fileName };
+  for (const [index, shipment] of pending.entries()) {
+    const trackingNumber = trackingNumbers[index] || '';
+    const trackingUrl = trackingNumber ? `https://gls-group.eu/SK/sk/sledovanie-zasielok/?match=${encodeURIComponent(trackingNumber)}` : '';
+    const outcome = { downloads: [download], results: [{ orderId: shipment.orderId, externalOrderId: shipment.externalOrderId, success: true, trackingNumber }] };
+    try {
+      // Persist each order's result independently; retries share the same batch PDF.
+      await operations.prepare(shipment.orderId, outcome, trackingNumber, trackingUrl, labelUrl);
+      addOutcome(outcome);
+    } catch (error) {
+      await operations.failed(shipment.orderId);
+      results.push({ orderId: shipment.orderId, externalOrderId: shipment.externalOrderId, success: false, error: failure });
+    }
+  }
+  return { downloads: [...downloads.values()], results };
 }
 
 // ── Posta ──────────────────────────────────────────────────────────────────────
@@ -569,6 +603,6 @@ async function guarded(orders,create){
  for(const order of orders){try{const result=await create([order]);combined.downloads.push(...result.downloads);combined.results.push(...result.results);}catch(error){combined.results.push({orderId:order.id,externalOrderId:String(order.external_order_id||''),success:false,error:error.message});}}
  return combined;
 }
-const printGlsLabels=(orders,map,replacements={})=>guarded(orders,list=>createGlsLabels(list,map,replacements));
+const printGlsLabels=(orders,map,replacements={})=>createGlsLabels(orders,map,replacements);
 const printPostaLabels=(orders,map,type,replacements={})=>guarded(orders,list=>createPostaLabels(list,map,type,replacements));
 module.exports = { printGlsLabels, printPostaLabels, getProductMap, getOrdersByIds };
